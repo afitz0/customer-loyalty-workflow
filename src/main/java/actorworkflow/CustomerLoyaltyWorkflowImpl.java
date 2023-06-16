@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Timer;
 
 public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
 
@@ -58,15 +59,18 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
         logger.info("Added {} points to customer. Loyalty points now {}",
                 pointsToAdd, customer.getLoyaltyPoints());
 
-        int nextLevel = customer.getStatusLevel() + 1;
-        if (nextLevel < Shared.STATUS_TIERS.length) {
-            StatusTier nextTier = Shared.STATUS_TIERS[nextLevel];
-            if (customer.getLoyaltyPoints() >= nextTier.getMinimumPoints()) {
-                logger.info("Promoting customer to next level!");
-                customer.setStatusLevel(nextLevel);
-                activities.sendEmail("Congratulations! You've been promoted to the '%s' tier!"
-                        .formatted(nextTier.getName()));
+        StatusTier tierToPromoteTo = Shared.STATUS_TIERS[0];
+        for (StatusTier tier : Shared.STATUS_TIERS) {
+            if (customer.getLoyaltyPoints() >= tier.getMinimumPoints()) {
+                tierToPromoteTo = tier;
             }
+        }
+
+        if (tierToPromoteTo != Shared.STATUS_TIERS[customer.getStatusLevel()]) {
+            logger.info("Promoting customer!");
+            customer.setStatusLevel(Arrays.asList(Shared.STATUS_TIERS).indexOf(tierToPromoteTo));
+            activities.sendEmail("Congratulations! You've been promoted to the '%s' tier!"
+                    .formatted(tierToPromoteTo.getName()));
         }
     }
 
