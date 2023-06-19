@@ -4,14 +4,12 @@ import io.temporal.activity.ActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.ParentClosePolicy;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
-import io.temporal.common.RetryOptions;
 import io.temporal.workflow.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Timer;
 
 public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
 
@@ -59,12 +57,7 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
         logger.info("Added {} points to customer. Loyalty points now {}",
                 pointsToAdd, customer.getLoyaltyPoints());
 
-        StatusTier tierToPromoteTo = Shared.STATUS_TIERS[0];
-        for (StatusTier tier : Shared.STATUS_TIERS) {
-            if (customer.getLoyaltyPoints() >= tier.getMinimumPoints()) {
-                tierToPromoteTo = tier;
-            }
-        }
+        StatusTier tierToPromoteTo = getMaxTier(customer.getLoyaltyPoints());
 
         if (tierToPromoteTo != Shared.STATUS_TIERS[customer.getStatusLevel()]) {
             logger.info("Promoting customer!");
@@ -128,5 +121,15 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
     @Override
     public String getStatus() {
         return Shared.STATUS_TIERS[customer.getStatusLevel()].getName();
+    }
+
+    private StatusTier getMaxTier(int points) {
+        for (int i = Shared.STATUS_TIERS.length - 1; i >=0; i--) {
+        StatusTier tier = Shared.STATUS_TIERS[i];
+            if (points >= tier.getMinimumPoints()) {
+                return tier;
+            }
+        }
+        return Shared.STATUS_TIERS[0];
     }
 }

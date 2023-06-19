@@ -1,7 +1,7 @@
 package actorworkflow;
 
 public interface Shared {
-    static final public String TASK_QUEUE_NAME = "BugfixDemoTaskQueue";
+    static final public String TASK_QUEUE_NAME = "CustomerLoyaltyTaskQueue";
 
     static final public int HISTORY_THRESHOLD = 10_000;
 

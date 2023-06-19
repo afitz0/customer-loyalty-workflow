@@ -9,28 +9,28 @@ public class Customer {
     private int statusLevel;
     private ArrayList<Customer> guests = new ArrayList<>();
 
-    public Customer(String name, String customerId, int loyaltyPoints, int statusLevel) {
-        this.name = name;
+    public Customer(String customerId) {
         this.customerId = customerId;
-        this.loyaltyPoints = loyaltyPoints;
-        this.statusLevel = statusLevel;
     }
 
     public Customer(String name, String customerId) {
+        this(customerId);
         this.name = name;
-        this.customerId = customerId;
+    }
+
+    public Customer(String name, String customerId, int loyaltyPoints) {
+        this(name, customerId);
+        this.loyaltyPoints = loyaltyPoints;
+    }
+
+    public Customer(String name, String customerId, int loyaltyPoints, int statusLevel) {
+        this(name, customerId, loyaltyPoints);
+        this.statusLevel = statusLevel;
     }
 
     public Customer(String name, String customerId, int loyaltyPoints, int statusLevel, ArrayList<Customer> guests) {
-        this.name = name;
-        this.customerId = customerId;
-        this.loyaltyPoints = loyaltyPoints;
-        this.statusLevel = statusLevel;
+        this(name, customerId, loyaltyPoints, statusLevel);
         this.guests = guests;
-    }
-
-    public Customer() {
-        this.guests = new ArrayList<>();
     }
 
     public String getName() {
