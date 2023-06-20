@@ -38,11 +38,9 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
 
         // block on everything
         while (true) {
-            Workflow.await(() -> !accountActive
-                    || info.getHistoryLength() > Shared.HISTORY_THRESHOLD);
+            Workflow.await(() -> !accountActive);
             if (accountActive) {
-                logger.info("Account still active, history limit crossed limit; continuing-as-new.");
-                Workflow.continueAsNew(customer);
+                logger.info("Account still active, history limit crossed limit; continuing-as-new?");
             } else {
                 logger.info("Account canceled. Closing workflow.");
                 return "Done";
@@ -71,36 +69,6 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
         if (customer.canAddGuest()) {
             logger.info("Attempting to invite a guest.");
             customer.addGuest(guest);
-
-            String guestWorkflowId = Shared.WORKFLOW_ID_FORMAT.formatted(guest.getCustomerId());
-            ChildWorkflowOptions options =
-                    ChildWorkflowOptions.newBuilder()
-                            .setWorkflowId(guestWorkflowId)
-                            .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON)
-                            .build();
-
-            CustomerLoyaltyWorkflow child = Workflow.newChildWorkflowStub(CustomerLoyaltyWorkflow.class, options);
-
-            try {
-                Promise<WorkflowExecution> childExecution = Workflow.getWorkflowExecution(child);
-                Async.procedure(child::customerLoyalty, guest);
-                // Wait for child to start
-                childExecution.get();
-            } catch (WorkflowExecutionAlreadyStarted e) {
-                logger.info("Guest customer workflow already started and is a direct child.");
-            } catch (Exception e) {
-                if (e.getCause() instanceof WorkflowExecutionAlreadyStarted) {
-                    logger.info("Guest customer workflow already started. " +
-                                    "Signaling to ensure that they're at least \"{}\" status",
-                            customer.getStatus().name());
-                    ExternalWorkflowStub childWorkflowToSignal = Workflow.newUntypedExternalWorkflowStub(guestWorkflowId);
-                    StatusTier guestMinStatus = StatusTier.previous(customer.getStatus());
-                    childWorkflowToSignal.signal("ensureMinimumStatus", guestMinStatus);
-                } else {
-                    throw e;
-                }
-            }
-
         }
     }
 
