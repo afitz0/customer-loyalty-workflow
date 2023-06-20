@@ -6,7 +6,7 @@ public class Customer {
     private String name;
     private String customerId;
     private int loyaltyPoints;
-    private int statusLevel;
+    private StatusTier status;
     private ArrayList<Customer> guests = new ArrayList<>();
 
     public Customer(String customerId) {
@@ -14,22 +14,28 @@ public class Customer {
     }
 
     public Customer(String name, String customerId) {
-        this(customerId);
+        this.customerId = customerId;
         this.name = name;
     }
 
     public Customer(String name, String customerId, int loyaltyPoints) {
-        this(name, customerId);
+        this.name = name;
+        this.customerId = customerId;
         this.loyaltyPoints = loyaltyPoints;
     }
 
-    public Customer(String name, String customerId, int loyaltyPoints, int statusLevel) {
-        this(name, customerId, loyaltyPoints);
-        this.statusLevel = statusLevel;
+    public Customer(String name, String customerId, int loyaltyPoints, StatusTier status) {
+        this.name = name;
+        this.customerId = customerId;
+        this.loyaltyPoints = loyaltyPoints;
+        this.status = status;
     }
 
-    public Customer(String name, String customerId, int loyaltyPoints, int statusLevel, ArrayList<Customer> guests) {
-        this(name, customerId, loyaltyPoints, statusLevel);
+    public Customer(String name, String customerId, int loyaltyPoints, StatusTier status, ArrayList<Customer> guests) {
+        this.name = name;
+        this.customerId = customerId;
+        this.loyaltyPoints = loyaltyPoints;
+        this.status = status;
         this.guests = guests;
     }
 
@@ -57,12 +63,12 @@ public class Customer {
         this.loyaltyPoints = loyaltyPoints;
     }
 
-    public int getStatusLevel() {
-        return statusLevel;
+    public StatusTier getStatus() {
+        return status;
     }
 
-    public void setStatusLevel(int statusLevel) {
-        this.statusLevel = statusLevel;
+    public void setStatus(StatusTier status) {
+        this.status = status;
     }
 
     public ArrayList<Customer> getGuests() {
@@ -78,7 +84,6 @@ public class Customer {
     }
 
     public boolean canAddGuest() {
-        StatusTier tier = Shared.STATUS_TIERS[statusLevel];
-        return this.guests.size() < tier.getGuestsAllowed();
+        return guests.size() < status.guestsAllowed();
     }
 }

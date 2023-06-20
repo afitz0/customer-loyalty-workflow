@@ -18,11 +18,11 @@ public interface CustomerLoyaltyWorkflow {
     void inviteGuest(Customer guest);
 
     @SignalMethod
-    void ensureMinimumStatus(int statusLevel);
+    void ensureMinimumStatus(StatusTier status);
 
     @SignalMethod
     void cancelAccount();
 
     @QueryMethod
-    String getStatus();
+    StatusTier getStatus();
 }
