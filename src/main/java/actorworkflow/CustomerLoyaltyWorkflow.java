@@ -5,6 +5,8 @@ import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 
+import java.util.ArrayList;
+
 // Workflow interface
 @WorkflowInterface
 public interface CustomerLoyaltyWorkflow {
@@ -25,4 +27,7 @@ public interface CustomerLoyaltyWorkflow {
 
     @QueryMethod
     StatusTier getStatus();
+
+    @QueryMethod
+    ArrayList<Customer> getGuests();
 }

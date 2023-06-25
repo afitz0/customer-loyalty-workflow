@@ -15,7 +15,7 @@ public record StatusTier(String name, int minimumPoints, int guestsAllowed) {
 
     public static StatusTier next(StatusTier tier) {
         int nextIndex = STATUS_TIERS.indexOf(tier) + 1;
-        return STATUS_TIERS.get(Math.max(STATUS_TIERS.size(), nextIndex));
+        return STATUS_TIERS.get(Math.min(STATUS_TIERS.size(), nextIndex));
     }
 
     public static StatusTier previous(StatusTier tier) {

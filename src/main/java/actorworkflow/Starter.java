@@ -12,11 +12,12 @@ public class Starter {
         WorkflowServiceStubs service = WorkflowServiceStubs.newLocalServiceStubs();
         WorkflowClient client = WorkflowClient.newInstance(service);
 
-        Customer customer = new Customer("Fitz", "123abc");
+        Customer customer = new Customer("123");
+        customer = customer.withStatus(StatusTier.STATUS_TIERS.get(3));
 
         WorkflowOptions workflowOptions =
                 WorkflowOptions.newBuilder()
-                        .setWorkflowId(Shared.WORKFLOW_ID_FORMAT.formatted(customer.getCustomerId()))
+                        .setWorkflowId(Shared.WORKFLOW_ID_FORMAT.formatted(customer.customerId()))
                         .setTaskQueue(Shared.TASK_QUEUE_NAME)
                         .build();
         CustomerLoyaltyWorkflow workflow = client.newWorkflowStub(CustomerLoyaltyWorkflow.class, workflowOptions);

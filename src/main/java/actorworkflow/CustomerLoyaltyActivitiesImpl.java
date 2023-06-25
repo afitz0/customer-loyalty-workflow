@@ -11,6 +11,7 @@ public class CustomerLoyaltyActivitiesImpl implements CustomerLoyaltyActivities 
     @Override
     public void sendEmail(String body) {
         logger.info("Sending email: '" + body + "'");
+        /// Blocking REST
     }
 
 }

@@ -9,17 +9,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.ArrayList;
 
 public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
 
-    private static final Logger logger = LoggerFactory.getLogger(CustomerLoyaltyWorkflowImpl.class);
+    private static final Logger logger = Workflow.getLogger(CustomerLoyaltyWorkflowImpl.class);
 
     private final CustomerLoyaltyActivities activities =
             Workflow.newActivityStub(
                     CustomerLoyaltyActivities.class,
                     ActivityOptions.newBuilder()
                             .setStartToCloseTimeout(Duration.ofSeconds(2))
-                            .build());
+                                    .build());
 
     boolean accountActive = true;
 
@@ -27,20 +28,24 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
 
     @Override
     public String customerLoyalty(Customer customer) {
+        System.out.println("Customer passed in is: " + customer);
         this.customer = customer;
         WorkflowInfo info = Workflow.getInfo();
 
+        logger.info("Started workflow. Customer is {}", customer);
+
         if (info.getContinuedExecutionRunId().isEmpty()) {
-            String tier = customer.getStatus().name();
+            String tier = customer.status().name();
             activities.sendEmail("Welcome to our loyalty program! You're starting out at the '%s' tier."
                     .formatted(tier));
         }
 
         // block on everything
         while (true) {
-            Workflow.await(() -> !accountActive);
+            Workflow.await(() -> !accountActive || info.getHistoryLength() > Shared.HISTORY_THRESHOLD);
             if (accountActive) {
                 logger.info("Account still active, history limit crossed limit; continuing-as-new?");
+                Workflow.continueAsNew(customer);
             } else {
                 logger.info("Account canceled. Closing workflow.");
                 return "Done";
@@ -50,15 +55,15 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
 
     @Override
     public void addLoyaltyPoints(int pointsToAdd) {
-        customer.setLoyaltyPoints(customer.getLoyaltyPoints() + pointsToAdd);
+        customer = customer.withPoints(customer.loyaltyPoints() + pointsToAdd);
         logger.info("Added {} points to customer. Loyalty points now {}",
-                pointsToAdd, customer.getLoyaltyPoints());
+                pointsToAdd, customer.loyaltyPoints());
 
-        StatusTier tierToPromoteTo = StatusTier.getMaxTier(customer.getLoyaltyPoints());
+        StatusTier tierToPromoteTo = StatusTier.getMaxTier(customer.loyaltyPoints());
 
-        if (customer.getStatus().minimumPoints() < tierToPromoteTo.minimumPoints()) {
+        if (customer.status().minimumPoints() < tierToPromoteTo.minimumPoints()) {
             logger.info("Promoting customer!");
-            customer.setStatus(tierToPromoteTo);
+            customer = customer.withStatus(tierToPromoteTo);
             activities.sendEmail("Congratulations! You've been promoted to the '%s' tier!"
                     .formatted(tierToPromoteTo.name()));
         }
@@ -66,20 +71,63 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
 
     @Override
     public void inviteGuest(Customer guest) {
-        if (customer.canAddGuest()) {
+        logger.info("Attempting to invite guest {}", guest);
+        if (Customer.canAddGuest(customer)) {
             logger.info("Attempting to invite a guest.");
-            customer.addGuest(guest);
+            customer.guests().add(guest);
+
+            StatusTier guestMinStatus = StatusTier.previous(customer.status());
+            guest = guest.withStatus(guestMinStatus);
+
+            String guestWorkflowId = Shared.WORKFLOW_ID_FORMAT.formatted(guest.customerId());
+            ChildWorkflowOptions options =
+                    ChildWorkflowOptions.newBuilder()
+                            .setWorkflowId(guestWorkflowId)
+                            .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON)
+                            .build();
+
+            CustomerLoyaltyWorkflow child = Workflow.newChildWorkflowStub(CustomerLoyaltyWorkflow.class, options);
+
+            boolean alreadyStarted = false;
+            try {
+                Promise<WorkflowExecution> childExecution = Workflow.getWorkflowExecution(child);
+                Async.procedure(child::customerLoyalty, guest);
+
+                // Wait for child to start
+                childExecution.get();
+            } catch (WorkflowExecutionAlreadyStarted e) {
+                logger.info("Guest customer workflow already started and is a direct child.");
+                alreadyStarted = true;
+            } catch (Exception e) {
+                if (e.getCause() instanceof WorkflowExecutionAlreadyStarted) {
+                    logger.info("Guest customer workflow already started.");
+                } else {
+                    throw e;
+                }
+                alreadyStarted = true;
+            }
+
+            if (alreadyStarted) {
+                // Reset child to ensure we're actually working with the latest running execution
+                child = Workflow.newExternalWorkflowStub(CustomerLoyaltyWorkflow.class, guestWorkflowId);
+
+//            ExternalWorkflowStub childWorkflowToSignal = Workflow.newUntypedExternalWorkflowStub(guestWorkflowId);
+                logger.info("Signaling to ensure that they're at least \"{}\" status", guestMinStatus.name());
+//            childWorkflowToSignal.signal("ensureMinimumStatus", guestMinStatus);
+                child.ensureMinimumStatus(guestMinStatus);
+            }
         }
     }
 
     @Override
     public void ensureMinimumStatus(StatusTier status) {
+        WorkflowInfo info = Workflow.getInfo();
         logger.info("Ensuring that status is at minimum {}.", status.name());
-        while (customer.getStatus().minimumPoints() < status.minimumPoints()) {
-            customer.setStatus(StatusTier.next(customer.getStatus()));
+        while (customer.status().minimumPoints() < status.minimumPoints()) {
+            customer = customer.withStatus(StatusTier.next(customer.status()));
         }
 
-        customer.setLoyaltyPoints(Math.max(customer.getLoyaltyPoints(), status.minimumPoints()));
+        customer = customer.withPoints(Math.max(customer.loyaltyPoints(), status.minimumPoints()));
     }
 
     @Override
@@ -89,6 +137,11 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
 
     @Override
     public StatusTier getStatus() {
-        return customer.getStatus();
+        return customer.status();
+    }
+
+    @Override
+    public ArrayList<Customer> getGuests() {
+        return customer.guests();
     }
 }

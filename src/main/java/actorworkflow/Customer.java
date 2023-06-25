@@ -1,89 +1,58 @@
 package actorworkflow;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
+
 import java.util.ArrayList;
 
-public class Customer {
-    private String name;
-    private String customerId;
-    private int loyaltyPoints;
-    private StatusTier status;
-    private ArrayList<Customer> guests = new ArrayList<>();
-
+@JsonInclude(Include.NON_NULL)
+public record Customer(
+        String customerId,
+        String name,
+        int loyaltyPoints,
+        StatusTier status,
+        ArrayList<Customer> guests
+) {
     public Customer(String customerId) {
-        this.customerId = customerId;
+        this(customerId,
+                "",
+                0,
+                StatusTier.STATUS_TIERS.get(0),
+                new ArrayList<>());
     }
 
-    public Customer(String name, String customerId) {
-        this.customerId = customerId;
-        this.name = name;
+    public Customer {
+        if (status == null) {
+            status = StatusTier.STATUS_TIERS.get(0);
+        }
+        if (guests == null) {
+            guests = new ArrayList<>();
+        }
     }
 
-    public Customer(String name, String customerId, int loyaltyPoints) {
-        this.name = name;
-        this.customerId = customerId;
-        this.loyaltyPoints = loyaltyPoints;
+    public Customer withPoints(int points) {
+        return new Customer(
+                customerId,
+                name,
+                points,
+                status,
+                guests
+        );
     }
 
-    public Customer(String name, String customerId, int loyaltyPoints, StatusTier status) {
-        this.name = name;
-        this.customerId = customerId;
-        this.loyaltyPoints = loyaltyPoints;
-        this.status = status;
+    public Customer withStatus(StatusTier status) {
+        return new Customer(
+                customerId,
+                name,
+                loyaltyPoints,
+                status,
+                guests
+        );
     }
 
-    public Customer(String name, String customerId, int loyaltyPoints, StatusTier status, ArrayList<Customer> guests) {
-        this.name = name;
-        this.customerId = customerId;
-        this.loyaltyPoints = loyaltyPoints;
-        this.status = status;
-        this.guests = guests;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getCustomerId() {
-        return customerId;
-    }
-
-    public void setCustomerId(String customerId) {
-        this.customerId = customerId;
-    }
-
-    public int getLoyaltyPoints() {
-        return loyaltyPoints;
-    }
-
-    public void setLoyaltyPoints(int loyaltyPoints) {
-        this.loyaltyPoints = loyaltyPoints;
-    }
-
-    public StatusTier getStatus() {
-        return status;
-    }
-
-    public void setStatus(StatusTier status) {
-        this.status = status;
-    }
-
-    public ArrayList<Customer> getGuests() {
-        return guests;
-    }
-
-    public void setGuests(ArrayList<Customer> guests) {
-        this.guests = guests;
-    }
-
-    public void addGuest(Customer customer) {
-        this.guests.add(customer);
-    }
-
-    public boolean canAddGuest() {
-        return guests.size() < status.guestsAllowed();
+    public static boolean canAddGuest(Customer customer) {
+        return customer.guests().size() < customer.status().guestsAllowed();
     }
 }
