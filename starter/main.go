@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"go.temporal.io/sdk/client"
@@ -22,23 +23,23 @@ func main() {
 	}
 	defer c.Close()
 
+	customer := starter.CustomerInfo{
+		CustomerId:    "123",
+		LoyaltyPoints: 0,
+		StatusLevel:   0,
+		Name:          "Customer",
+		Guests:        []string{},
+		AccountActive: true,
+	}
 	workflowOptions := client.StartWorkflowOptions{
-		ID:        "temporal-starter-workflow",
-		TaskQueue: "temporal-starter",
+		ID:        fmt.Sprintf(starter.CustomerWorkflowIdFormat, customer.CustomerId),
+		TaskQueue: starter.TaskQueue,
 	}
 
-	we, err := c.ExecuteWorkflow(context.Background(), workflowOptions, starter.Workflow, "Hello", "World")
+	we, err := c.ExecuteWorkflow(context.Background(), workflowOptions, starter.CustomerLoyaltyWorkflow, customer)
 	if err != nil {
 		log.Fatalln("Unable to execute workflow", err)
 	}
 
 	log.Println("Started workflow", "WorkflowID", we.GetID(), "RunID", we.GetRunID())
-
-	// Synchronously wait for the workflow completion.
-	var result string
-	err = we.Get(context.Background(), &result)
-	if err != nil {
-		log.Fatalln("Unable get workflow result", err)
-	}
-	log.Println("Workflow result:", result)
 }

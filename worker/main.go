@@ -22,10 +22,10 @@ func main() {
 	}
 	defer c.Close()
 
-	w := worker.New(c, "temporal-starter", worker.Options{})
+	w := worker.New(c, starter.TaskQueue, worker.Options{})
 
 	a := &starter.Activities{}
-	w.RegisterWorkflow(starter.Workflow)
+	w.RegisterWorkflow(starter.CustomerLoyaltyWorkflow)
 	w.RegisterActivity(a)
 
 	err = w.Run(worker.InterruptCh())
