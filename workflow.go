@@ -103,6 +103,7 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 						return
 					}
 
+					customer.Guests = append(customer.Guests, guest.CustomerId)
 					emailToSend = EmailGuestInvited
 				}
 			} else {
@@ -129,8 +130,7 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 			}
 
 			if promoted {
-				emailBody := fmt.Sprintf("Congratulations! You've been promoted to '%v' status!",
-					minStatus.Name)
+				emailBody := fmt.Sprintf(EmailPromoted, minStatus.Name)
 				err := workflow.ExecuteActivity(ctx, activities.SendEmail, emailBody).Get(ctx, nil)
 				if err != nil {
 					logger.Error("Error running SendEmail activity", "Error", err)
@@ -146,7 +146,7 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 			c.Receive(ctx, nil)
 
 			customer.AccountActive = false
-			err = workflow.ExecuteActivity(ctx, activities.SendEmail, "Sorry to see you go!").Get(ctx, nil)
+			err = workflow.ExecuteActivity(ctx, activities.SendEmail, EmailCancelAccount).Get(ctx, nil)
 			if err != nil {
 				logger.Error("Error running SendEmail activity", "Error", err)
 				errSignal = err
@@ -165,6 +165,12 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 			}
 
 			return status, nil
+		})
+
+	err = workflow.SetQueryHandler(ctx, QueryGetGuests,
+		func() ([]string, error) {
+			logger.Info("Sending back guest list", "Guests", customer.Guests)
+			return customer.Guests, nil
 		})
 
 	// Block on everything. Continue-As-New on history length; size of activities in this workflow are small enough
@@ -193,12 +199,7 @@ func startGuestWorkflow(ctx workflow.Context, guest CustomerInfo, minStatus Stat
 	}
 	ctx = workflow.WithChildOptions(ctx, childWorkflowOptions)
 
-	// TODO add child to guest list
-
 	childWorkflowFuture := workflow.ExecuteChildWorkflow(ctx, CustomerLoyaltyWorkflow, guest)
-
-	// Wait for the Child Workflow Execution to spawn
-	//var childWE workflow.Execution
 	return childWorkflowFuture.
 		SignalChildWorkflow(ctx, SignalEnsureMinimumStatus, minStatus).
 		Get(ctx, nil)

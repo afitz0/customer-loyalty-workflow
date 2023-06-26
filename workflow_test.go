@@ -138,7 +138,7 @@ func Test_InviteGuest(t *testing.T) {
 	env := testSuite.NewTestWorkflowEnvironment()
 	env.RegisterActivity(&Activities{})
 
-	// first, invite the guest. This should result in another workflow being starter
+	// first, invite the guest. This should result in another workflow being started
 	env.RegisterDelayedCallback(func() {
 		guestId := "guest"
 		env.SignalWorkflow(SignalInviteGuest, guestId)
@@ -154,6 +154,48 @@ func Test_InviteGuest(t *testing.T) {
 		err = result.Get(&state)
 		require.NoError(t, err)
 		require.True(t, state.AccountActive)
+	}, time.Second*1)
+
+	// cancel workflows to not timeout
+	env.RegisterDelayedCallback(func() {
+		env.SignalWorkflow(SignalCancelAccount, nil)
+		env.SignalWorkflowByID(
+			fmt.Sprintf(CustomerWorkflowIdFormat, "guest"),
+			SignalCancelAccount, nil)
+	}, time.Second*2)
+
+	customer := CustomerInfo{
+		CustomerId:    "123",
+		LoyaltyPoints: 0,
+		StatusLevel:   1,
+		Name:          "Customer",
+		Guests:        []string{},
+		AccountActive: true,
+	}
+	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
+}
+
+func Test_QueryGuests(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestWorkflowEnvironment()
+	env.RegisterActivity(&Activities{})
+
+	guestId := "guest"
+
+	// first, invite the guest. This should result in this guest's ID being added to the original customer
+	env.RegisterDelayedCallback(func() {
+		env.SignalWorkflow(SignalInviteGuest, guestId)
+	}, 0)
+
+	// Query the original customer's guest list
+	env.RegisterDelayedCallback(func() {
+		result, err := env.QueryWorkflow(QueryGetGuests)
+		require.NoError(t, err)
+		var guests []string
+		err = result.Get(&guests)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(guests))
+		require.Equal(t, guestId, guests[0])
 	}, time.Second*1)
 
 	// cancel workflows to not timeout

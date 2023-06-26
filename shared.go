@@ -10,6 +10,7 @@ const (
 	SignalInviteGuest         = "inviteGuest"
 	SignalEnsureMinimumStatus = "ensureMinimumStatus"
 	QueryGetStatus            = "getStatus"
+	QueryGetGuests            = "getGuests"
 )
 
 type StatusTier struct {
