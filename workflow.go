@@ -48,10 +48,21 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 			logger.Info("Adding points to customer account", "PointsAdded", pointsToAdd)
 			customer.LoyaltyPoints += pointsToAdd
 
-			// Check if current points warrants new status tier
-			if customer.StatusLevel < len(StatusTiers) {
-				if customer.LoyaltyPoints >= StatusTiers[min(customer.StatusLevel+1, len(StatusTiers))].MinimumPoints {
-					// TODO promote to next level
+			promoted := false
+			// while customer's current points are higher than next status, increase their status
+			for customer.LoyaltyPoints >= StatusTiers[min(len(StatusTiers)-1, customer.StatusLevel+1)].MinimumPoints &&
+				customer.StatusLevel < len(StatusTiers) {
+				customer.StatusLevel++
+				promoted = true
+			}
+
+			if promoted {
+				err = workflow.ExecuteActivity(ctx, activities.SendEmail,
+					fmt.Sprintf(EmailPromoted, StatusTiers[customer.StatusLevel].Name)).
+					Get(ctx, nil)
+				if err != nil {
+					logger.Error("Error running SendEmail activity", "Error", err)
+					errSignal = err
 				}
 			}
 		})

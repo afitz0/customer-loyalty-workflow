@@ -62,6 +62,77 @@ func Test_AddPoints(t *testing.T) {
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
 }
 
+func Test_AddPointsForSinglePromo(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestWorkflowEnvironment()
+	env.RegisterActivity(&Activities{})
+
+	env.RegisterDelayedCallback(func() {
+		env.SignalWorkflow(SignalAddPoints, StatusTiers[1].MinimumPoints)
+	}, 0)
+	env.RegisterDelayedCallback(func() {
+		result, err := env.QueryWorkflow(QueryGetStatus)
+		require.NoError(t, err)
+
+		var state GetStatusResponse
+		err = result.Get(&state)
+		require.NoError(t, err)
+		require.Equal(t, StatusTiers[1].MinimumPoints, state.Points)
+		require.Equal(t, 1, state.StatusLevel)
+		require.Equal(t, StatusTiers[1], state.Tier)
+	}, time.Second*1)
+	env.RegisterDelayedCallback(func() {
+		env.SignalWorkflow(SignalCancelAccount, nil)
+	}, time.Second*2)
+
+	customer := CustomerInfo{
+		CustomerId:    "123",
+		LoyaltyPoints: 0,
+		StatusLevel:   0,
+		Name:          "Customer",
+		Guests:        []string{},
+		AccountActive: true,
+	}
+	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
+}
+
+func Test_AddPointsForMultiPromo(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestWorkflowEnvironment()
+	env.RegisterActivity(&Activities{})
+
+	targetLevel := len(StatusTiers) - 1
+	targetTier := StatusTiers[targetLevel]
+
+	env.RegisterDelayedCallback(func() {
+		env.SignalWorkflow(SignalAddPoints, targetTier.MinimumPoints)
+	}, 0)
+	env.RegisterDelayedCallback(func() {
+		result, err := env.QueryWorkflow(QueryGetStatus)
+		require.NoError(t, err)
+
+		var state GetStatusResponse
+		err = result.Get(&state)
+		require.NoError(t, err)
+		require.Equal(t, targetTier.MinimumPoints, state.Points)
+		require.Equal(t, targetLevel, state.StatusLevel)
+		require.Equal(t, targetTier, state.Tier)
+	}, time.Second*1)
+	env.RegisterDelayedCallback(func() {
+		env.SignalWorkflow(SignalCancelAccount, nil)
+	}, time.Second*2)
+
+	customer := CustomerInfo{
+		CustomerId:    "123",
+		LoyaltyPoints: 0,
+		StatusLevel:   0,
+		Name:          "Customer",
+		Guests:        []string{},
+		AccountActive: true,
+	}
+	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
+}
+
 func Test_InviteGuest(t *testing.T) {
 	testSuite := &testsuite.WorkflowTestSuite{}
 	env := testSuite.NewTestWorkflowEnvironment()
