@@ -64,9 +64,13 @@ class CustomerLoyaltyWorkflow:
         pass
 
     @workflow.query(name=QUERY_GET_STATUS)
-    def get_status(self) -> str:
-        # TODO implement get_status
-        return ""
+    def get_status(self) -> GetStatusResponse:
+        return GetStatusResponse(
+            points=self.customer.points,
+            account_active=self.customer.account_active,
+            status_level=self.customer.status_level,
+            tier=STATUS_TIERS[self.customer.status_level]
+        )
 
     @workflow.query(name=QUERY_GET_GUESTS)
     def get_guests(self) -> list[str]:
