@@ -60,7 +60,9 @@ class CustomerLoyaltyWorkflow:
 
     @workflow.signal(name=SIGNAL_ENSURE_MINIMUM_STATUS)
     async def ensure_minimum_status(self, min_status: StatusTier):
-        # TODO implement ensure minimum status
+        while STATUS_TIERS[self.customer.status_level].minimum_points < min_status.minimum_points \
+                and self.customer.status_level < len(STATUS_TIERS) - 1:
+            self.customer.status_level += 1
         pass
 
     @workflow.query(name=QUERY_GET_STATUS)
