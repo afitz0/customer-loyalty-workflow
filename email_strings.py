@@ -1,0 +1,6 @@
+EMAIL_WELCOME = "Welcome to our loyalty program! You're starting out at '%v' status."
+EMAIL_GUEST_CANCELED = "Sorry, your guest has already canceled their account."
+EMAIL_GUEST_INVITED = "Congratulations! Your guest has been invited!"
+EMAIL_INSUFFICIENT_POINTS = "Sorry, you need to earn more points to invite more guests!"
+EMAIL_PROMOTED = "Congratulations! _You've been promoted to '%v' status!"
+EMAIL_CANCEL_ACCOUNT = "Sorry to see you go!"
