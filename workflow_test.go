@@ -1,7 +1,9 @@
 package starter
 
 import (
+	"context"
 	"fmt"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.temporal.io/sdk/testsuite"
 	"testing"
@@ -133,6 +135,37 @@ func Test_AddPointsForMultiPromo(t *testing.T) {
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
 }
 
+func Test_CancelAccount(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestWorkflowEnvironment()
+
+	env.RegisterActivity(&Activities{})
+	env.OnActivity("SendEmail", mock.Anything, mock.Anything).Return(nil)
+
+	// cancel account
+	env.RegisterDelayedCallback(func() {
+		env.SignalWorkflow(SignalCancelAccount, nil)
+	}, time.Second*1)
+
+	// check status
+	env.RegisterDelayedCallback(func() {
+		result, err := env.QueryWorkflow(QueryGetStatus)
+		require.NoError(t, err)
+		var status GetStatusResponse
+		err = result.Get(&status)
+		require.NoError(t, err)
+
+		require.False(t, status.AccountActive)
+	}, time.Second*2)
+
+	customer := CustomerInfo{
+		CustomerId:    "123",
+		AccountActive: true,
+	}
+	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
+	env.AssertCalled(t, "SendEmail", mock.Anything, EmailCancelAccount)
+}
+
 func Test_InviteGuest(t *testing.T) {
 	testSuite := &testsuite.WorkflowTestSuite{}
 	env := testSuite.NewTestWorkflowEnvironment()
@@ -215,6 +248,78 @@ func Test_QueryGuests(t *testing.T) {
 		AccountActive: true,
 	}
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
+}
+
+func Test_InviteGuestPreviouslyCanceled(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestWorkflowEnvironment()
+
+	env.RegisterActivity(&Activities{})
+	env.OnActivity("SendEmail", mock.Anything, mock.Anything).Return(
+		func(ctx context.Context, body string) (err error) {
+			fmt.Println(body)
+			return nil
+		})
+
+	order := time.Second
+	guestId := "guest"
+	guestWfId := fmt.Sprintf(CustomerWorkflowIdFormat, guestId)
+
+	// first, invite the guest. This should result in another workflow being started
+	env.RegisterDelayedCallback(func() {
+		env.SignalWorkflow(SignalInviteGuest, guestId)
+	}, order)
+	order += time.Second
+
+	// immediately cancel the guest account. this should keep it queryable, but sets AccountActive -> false
+	env.RegisterDelayedCallback(func() {
+		fmt.Println("here 0")
+		err := env.SignalWorkflowByID(
+			guestWfId,
+			SignalCancelAccount, nil)
+		require.NoError(t, err)
+	}, order)
+	order += time.Second
+
+	env.RegisterDelayedCallback(func() {
+		result, err := env.QueryWorkflowByID(guestWfId, QueryGetStatus)
+		require.NoError(t, err)
+		var status GetStatusResponse
+		err = result.Get(&status)
+		require.NoError(t, err)
+
+		require.False(t, status.AccountActive)
+	}, order)
+	order += time.Second
+
+	// then, try to invite them again. the "guest has already canceled" email should be sent
+	env.RegisterDelayedCallback(func() {
+		fmt.Println("here2")
+		env.SignalWorkflow(SignalInviteGuest, guestId)
+	}, order)
+	order += time.Second
+
+	// cancel original workflow to not timeout
+	env.RegisterDelayedCallback(func() {
+		fmt.Println("here3")
+		env.SignalWorkflow(SignalCancelAccount, nil)
+	}, order)
+	order += time.Second
+
+	customer := CustomerInfo{
+		CustomerId:    "123",
+		LoyaltyPoints: 0,
+		StatusLevel:   2,
+		Name:          "Customer",
+		Guests:        []string{},
+		AccountActive: true,
+	}
+	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+	require.NoError(t, env.GetWorkflowResult(nil))
+
+	env.AssertCalled(t, "SendEmail", EmailGuestCanceled)
 }
 
 func Test_SendEmailActivity(t *testing.T) {

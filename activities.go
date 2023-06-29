@@ -6,7 +6,6 @@ import (
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/client"
-
 	"go.uber.org/zap/zapcore"
 
 	"starter/zapadapter"
@@ -17,6 +16,7 @@ type Activities struct{}
 func (a *Activities) SendEmail(ctx context.Context, body string) (err error) {
 	logger := activity.GetLogger(ctx)
 	logger.Info("Sending email", "Contents", body)
+	logger.Info("Activity name", "name", activity.GetInfo(ctx).ActivityType.Name)
 	return nil
 }
 
@@ -29,9 +29,11 @@ func (a *Activities) QueryCustomerStatus(ctx context.Context, customerId string)
 	resp, err := c.QueryWorkflow(ctx,
 		fmt.Sprintf(CustomerWorkflowIdFormat, customerId),
 		"",
-		"getStatus")
+		QueryGetStatus)
+
 	if _, isNotFound := err.(*serviceerror.NotFound); isNotFound {
 		// If this account doesn't exist yet, it needs to become active.
+		logger.Info("Account not found", "ID", customerId)
 		return GetStatusResponse{
 			AccountActive: true,
 		}, nil

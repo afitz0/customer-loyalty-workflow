@@ -3,7 +3,9 @@ package starter
 import (
 	"fmt"
 	"go.temporal.io/api/enums/v1"
+	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/sdk/temporal"
+	"reflect"
 	"time"
 
 	"go.temporal.io/sdk/workflow"
@@ -51,7 +53,7 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 			promoted := false
 			// while customer's current points are higher than next status, increase their status
 			for customer.LoyaltyPoints >= StatusTiers[min(len(StatusTiers)-1, customer.StatusLevel+1)].MinimumPoints &&
-				customer.StatusLevel < len(StatusTiers) {
+				customer.StatusLevel < len(StatusTiers)-1 {
 				customer.StatusLevel++
 				promoted = true
 			}
@@ -77,13 +79,15 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 				c.Receive(ctx, &guestId)
 
 				var status GetStatusResponse
-				err := workflow.ExecuteActivity(ctx, activities.QueryCustomerStatus, guestId).Get(ctx, &status)
+				err := workflow.ExecuteActivity(ctx, activities.QueryCustomerStatus, guestId).
+					Get(ctx, &status)
 				if err != nil {
 					logger.Error("Error getting potential guest customer status", "Error", err)
 					errSignal = err
 					return
 				}
 
+				logger.Info("Got status response", "Response", status)
 				guest := CustomerInfo{
 					CustomerId:    guestId,
 					LoyaltyPoints: status.Points,
@@ -91,20 +95,34 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 					AccountActive: status.AccountActive,
 				}
 
-				switch status.AccountActive {
-				case false:
-					emailToSend = EmailGuestCanceled
-				case true:
+				if guest.AccountActive {
 					previousTier := StatusTiers[min(customer.StatusLevel-1, 0)]
 					err = startGuestWorkflow(ctx, guest, previousTier)
 					if err != nil {
-						logger.Error("Could not start guest/child workflow.", "Error", err)
+						logger.Error("Could not start guest/child workflow.",
+							"Error", err,
+							"Error Type", reflect.ValueOf(err).Type())
 						errSignal = err
 						return
 					}
 
-					customer.Guests = append(customer.Guests, guest.CustomerId)
-					emailToSend = EmailGuestInvited
+					if _, ok := err.(*serviceerror.WorkflowExecutionAlreadyStarted); ok {
+						err = workflow.SignalExternalWorkflow(ctx,
+							fmt.Sprintf(CustomerWorkflowIdFormat, guestId),
+							"",
+							SignalEnsureMinimumStatus,
+							previousTier).Get(ctx, nil)
+						if err != nil {
+							errSignal = err
+							logger.Error("Could not signal child to ensure min status", err)
+							return
+						}
+					} else {
+						customer.Guests = append(customer.Guests, guest.CustomerId)
+						emailToSend = EmailGuestInvited
+					}
+				} else {
+					emailToSend = EmailGuestCanceled
 				}
 			} else {
 				emailToSend = EmailInsufficientPoints
@@ -124,7 +142,7 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 			c.Receive(ctx, &minStatus)
 
 			promoted := false
-			for StatusTiers[customer.StatusLevel].MinimumPoints < minStatus.MinimumPoints {
+			for StatusTiers[customer.StatusLevel].MinimumPoints < minStatus.MinimumPoints && customer.StatusLevel < len(StatusTiers)-1 {
 				customer.StatusLevel++
 				promoted = true
 			}
@@ -150,13 +168,17 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 			if err != nil {
 				logger.Error("Error running SendEmail activity", "Error", err)
 				errSignal = err
+				return
 			}
+
+			logger.Info("Canceled account", "CustomerID", customer.CustomerId)
 		})
 
 	// query handler for status level
 	// Set up the Query handler for the response
 	err = workflow.SetQueryHandler(ctx, QueryGetStatus,
 		func() (GetStatusResponse, error) {
+			logger.Info("Got status query", "Customer", customer)
 			status := GetStatusResponse{
 				StatusLevel:   customer.StatusLevel,
 				Tier:          StatusTiers[customer.StatusLevel],
@@ -188,14 +210,15 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 		return workflow.NewContinueAsNewError(ctx, customer)
 	}
 
-	logger.Info("Loyalty workflow completed.")
+	logger.Info("Loyalty workflow completed.", "Customer", customer)
 	return nil
 }
 
 func startGuestWorkflow(ctx workflow.Context, guest CustomerInfo, minStatus StatusTier) error {
 	childWorkflowOptions := workflow.ChildWorkflowOptions{
-		WorkflowID:        fmt.Sprintf(CustomerWorkflowIdFormat, guest.CustomerId),
-		ParentClosePolicy: enums.PARENT_CLOSE_POLICY_ABANDON,
+		WorkflowID:            fmt.Sprintf(CustomerWorkflowIdFormat, guest.CustomerId),
+		ParentClosePolicy:     enums.PARENT_CLOSE_POLICY_ABANDON,
+		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 	}
 	ctx = workflow.WithChildOptions(ctx, childWorkflowOptions)
 
