@@ -2,6 +2,9 @@ import logging
 from datetime import timedelta
 
 from temporalio import activity, workflow
+from temporalio.common import WorkflowIDReusePolicy
+from temporalio.exceptions import WorkflowAlreadyStartedError
+from temporalio.workflow import ParentClosePolicy
 
 import email_strings
 from shared import *
@@ -50,13 +53,47 @@ class CustomerLoyaltyWorkflow:
     @workflow.signal(name=SIGNAL_ADD_POINTS)
     async def add_points(self, points_to_add: int) -> None:
         self.customer.points += points_to_add
-        # TODO check for upgrades
+
+        promoted = False
+        # while customer's current points are higher than next status, increase their status
+        while self.customer.loyalty_points >= STATUS_TIERS[
+            min(len(STATUS_TIERS) - 1, self.customer.status_level + 1)].minimum_points and \
+                self.customer.status_level < len(STATUS_TIERS) - 1:
+            self.customer.Status_level += 1
+            promoted = True
+
+        if promoted:
+            await workflow.execute_activity(
+                send_email,
+                email_strings.EMAIL_PROMOTED.format(STATUS_TIERS[self.customer.STATUS_LEVEL].name),
+                start_to_close_timeout=timedelta(seconds=5)
+            )
 
     @workflow.signal(name=SIGNAL_INVITE_GUEST)
-    async def invite_guest(self, guest_id: str):
-        # TODO check if we're allowed to add guests
-        self.customer.guests.append(Customer(id=guest_id))
-        # TODO implement creating new guest
+    async def invite_guest(self, guest_id: str) -> None:
+        if len(self.customer.guests) >= STATUS_TIERS[self.customer.status_level].guests_allowed:
+            await workflow.execute_activity(
+                send_email,
+                email_strings.EMAIL_INSUFFICIENT_POINTS,
+                start_to_close_timeout=timedelta(seconds=5),
+            )
+            return
+
+        self.customer.guests.add(guest_id)
+
+        # TODO start (or attempt) child workflow
+        try:
+            guest = Customer(id=guest_id)
+            child_handle = await workflow.start_child_workflow(
+                CustomerLoyaltyWorkflow.run,
+                guest,
+                id=CUSTOMER_WORKFLOW_ID_FORMAT.format(guest_id),
+                parent_close_policy=ParentClosePolicy.ABANDON,
+                id_reuse_policy=WorkflowIDReusePolicy.REJECT_DUPLICATE,
+            )
+        except WorkflowAlreadyStartedError as e:
+            # TODO handle appropriately.
+            print("Already started!!")
 
     @workflow.signal(name=SIGNAL_ENSURE_MINIMUM_STATUS)
     async def ensure_minimum_status(self, min_status: StatusTier):
