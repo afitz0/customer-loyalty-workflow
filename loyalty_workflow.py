@@ -54,24 +54,23 @@ class CustomerLoyaltyWorkflow:
     async def add_points(self, points_to_add: int) -> None:
         self.customer.points += points_to_add
 
-        promoted = False
-        # while customer's current points are higher than next status, increase their status
-        while self.customer.loyalty_points >= STATUS_TIERS[
-            min(len(STATUS_TIERS) - 1, self.customer.status_level + 1)].minimum_points and \
-                self.customer.status_level < len(STATUS_TIERS) - 1:
-            self.customer.Status_level += 1
-            promoted = True
-
-        if promoted:
+        status_change = self.customer.status.update(self.customer.points)
+        if status_change > 0:
             await workflow.execute_activity(
                 send_email,
-                email_strings.EMAIL_PROMOTED.format(STATUS_TIERS[self.customer.STATUS_LEVEL].name),
+                email_strings.EMAIL_PROMOTED.format(self.customer.status.name),
+                start_to_close_timeout=timedelta(seconds=5)
+            )
+        elif status_change < 0:
+            await workflow.execute_activity(
+                send_email,
+                email_strings.EMAIL_DEMOTED.format(self.customer.status.name),
                 start_to_close_timeout=timedelta(seconds=5)
             )
 
     @workflow.signal(name=SIGNAL_INVITE_GUEST)
     async def invite_guest(self, guest_id: str) -> None:
-        if len(self.customer.guests) >= STATUS_TIERS[self.customer.status_level].guests_allowed:
+        if len(self.customer.guests) >= self.customer.status.guests_allowed:
             await workflow.execute_activity(
                 send_email,
                 email_strings.EMAIL_INSUFFICIENT_POINTS,
@@ -84,7 +83,7 @@ class CustomerLoyaltyWorkflow:
         # TODO start (or attempt) child workflow
         try:
             guest = Customer(id=guest_id)
-            child_handle = await workflow.start_child_workflow(
+            await workflow.start_child_workflow(
                 CustomerLoyaltyWorkflow.run,
                 guest,
                 id=CUSTOMER_WORKFLOW_ID_FORMAT.format(guest_id),
@@ -97,10 +96,7 @@ class CustomerLoyaltyWorkflow:
 
     @workflow.signal(name=SIGNAL_ENSURE_MINIMUM_STATUS)
     async def ensure_minimum_status(self, min_status: StatusTier):
-        while STATUS_TIERS[self.customer.status_level].minimum_points < min_status.minimum_points \
-                and self.customer.status_level < len(STATUS_TIERS) - 1:
-            self.customer.status_level += 1
-        pass
+        self.customer.status.ensure_at_least(min_status)
 
     @workflow.query(name=QUERY_GET_STATUS)
     def get_status(self) -> GetStatusResponse:
@@ -108,7 +104,7 @@ class CustomerLoyaltyWorkflow:
             points=self.customer.points,
             account_active=self.customer.account_active,
             status_level=self.customer.status_level,
-            tier=STATUS_TIERS[self.customer.status_level]
+            tier=self.customer.status.tier
         )
 
     @workflow.query(name=QUERY_GET_GUESTS)

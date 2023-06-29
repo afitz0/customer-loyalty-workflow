@@ -1,11 +1,10 @@
 import asyncio
-import logging
 
 from temporalio.client import Client
 from temporalio.worker import Worker
 
 from loyalty_workflow import *
-from shared import *
+from shared import TASK_QUEUE
 
 
 async def main():
@@ -19,7 +18,7 @@ async def main():
         client,
         task_queue=TASK_QUEUE,
         workflows=[CustomerLoyaltyWorkflow],
-        activities=[compose_greeting],
+        activities=[send_email],
     )
     logging.info("Starting worker.")
     await worker.run()
