@@ -5,6 +5,7 @@ from temporalio import activity, workflow
 from temporalio.common import WorkflowIDReusePolicy
 from temporalio.exceptions import WorkflowAlreadyStartedError
 from temporalio.workflow import ParentClosePolicy
+from temporalio.client import WorkflowHandle
 
 import email_strings
 from shared import *
@@ -31,7 +32,7 @@ class CustomerLoyaltyWorkflow:
         if not info.continued_run_id:
             await workflow.execute_activity(
                 send_email,
-                email_strings.EMAIL_WELCOME,
+                email_strings.EMAIL_WELCOME.format(self.customer.status.name),
                 start_to_close_timeout=timedelta(seconds=5),
             )
 
@@ -80,19 +81,36 @@ class CustomerLoyaltyWorkflow:
 
         self.customer.guests.add(guest_id)
 
-        # TODO start (or attempt) child workflow
+        guest = Customer(id=guest_id)
+        child_workflow_id = CUSTOMER_WORKFLOW_ID_FORMAT.format(guest_id)
+        child_handle: WorkflowHandle
         try:
-            guest = Customer(id=guest_id)
-            await workflow.start_child_workflow(
+            child_handle = await workflow.start_child_workflow(
                 CustomerLoyaltyWorkflow.run,
                 guest,
-                id=CUSTOMER_WORKFLOW_ID_FORMAT.format(guest_id),
+                id=child_workflow_id,
                 parent_close_policy=ParentClosePolicy.ABANDON,
                 id_reuse_policy=WorkflowIDReusePolicy.REJECT_DUPLICATE,
             )
-        except WorkflowAlreadyStartedError as e:
-            # TODO handle appropriately.
-            print("Already started!!")
+        except WorkflowAlreadyStartedError:
+            logging.info("Child workflow already started")
+            # child_handle = workflow.get_external_workflow_handle(child_workflow_id)
+            
+        child_info = await child_handle.describe()
+        isclosed = child_info.close_time is not None
+
+        if isclosed:
+            await workflow.execute_activity(
+                send_email,
+                email_strings.EMAIL_GUEST_CANCELED,
+                start_to_close_timeout=timedelta(seconds=5),
+            )
+        else:
+            await workflow.execute_activity(
+                send_email,
+                email_strings.EMAIL_GUEST_INVITED,
+                start_to_close_timeout=timedelta(seconds=5),
+            )
 
     @workflow.signal(name=SIGNAL_ENSURE_MINIMUM_STATUS)
     async def ensure_minimum_status(self, min_status: StatusTier):

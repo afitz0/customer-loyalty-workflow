@@ -1,5 +1,8 @@
 from dataclasses import dataclass, field
+from dataclasses_json import config, dataclass_json
+
 from typing import Optional
+import json
 
 TASK_QUEUE = "CustomerLoyaltyTaskQueue"
 CUSTOMER_WORKFLOW_ID_FORMAT = "customer-{}"
@@ -16,11 +19,11 @@ QUERY_GET_GUESTS = "getGuests"
 
 @dataclass
 class Customer:
-    id: str
+    id: str = field(metadata=config(field_name="customerId"))
     name: Optional[str] = ""
     points: Optional[int] = 0
     guests: Optional[set[str]] = field(default_factory=set)
-    account_active: Optional[bool] = True
+    account_active: Optional[bool] = field(default_factory=lambda: True, metadata=config(field_name="accountActive"))
     status: Optional['Status'] = field(default_factory=lambda: Status(0))
 
 
@@ -65,24 +68,28 @@ class Status:
         self._level = level
 
     @property
-    def level(self):
+    def level(self) -> int:
         return self._level
 
     @level.setter
-    def level(self, value):
+    def level(self, value) -> None:
         value = max(min(len(Status.LEVELS) - 1, value), 0)
         self._level = value
 
     @property
-    def name(self):
-        return Status.LEVELS[self._level]
+    def name(self) -> str:
+        return Status.LEVELS[self._level].name
 
     @property
-    def minimum_points(self):
+    def minimum_points(self) -> int:
         return Status.LEVELS[self._level].minimum_points
 
     @property
-    def tier(self):
+    def guests_allowed(self) -> int:
+        return Status.LEVELS[self._level].guests_allowed
+
+    @property
+    def tier(self) -> StatusTier:
         return Status.LEVELS[self._level]
 
     def update(self, points: int) -> int:
@@ -106,3 +113,14 @@ class Status:
         min_level = Status.LEVELS.index(status)
         if self._level < min_level:
             self._level = min_level
+
+    def __iter__(self):
+        yield from {
+            "level": self._level
+        }.items()
+
+    def __str__(self):
+        return json.dumps(dict(self), ensure_ascii=False)
+
+    def __repr__(self):
+        return self.__str__()
