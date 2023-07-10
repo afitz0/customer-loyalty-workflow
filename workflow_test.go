@@ -192,9 +192,10 @@ func Test_InviteGuest(t *testing.T) {
 	// cancel workflows to not timeout
 	env.RegisterDelayedCallback(func() {
 		env.SignalWorkflow(SignalCancelAccount, nil)
-		env.SignalWorkflowByID(
+		err := env.SignalWorkflowByID(
 			fmt.Sprintf(CustomerWorkflowIdFormat, "guest"),
 			SignalCancelAccount, nil)
+		require.NoError(t, err)
 	}, time.Second*2)
 
 	customer := CustomerInfo{
@@ -234,9 +235,10 @@ func Test_QueryGuests(t *testing.T) {
 	// cancel workflows to not timeout
 	env.RegisterDelayedCallback(func() {
 		env.SignalWorkflow(SignalCancelAccount, nil)
-		env.SignalWorkflowByID(
+		err := env.SignalWorkflowByID(
 			fmt.Sprintf(CustomerWorkflowIdFormat, "guest"),
 			SignalCancelAccount, nil)
+		require.NoError(t, err)
 	}, time.Second*2)
 
 	customer := CustomerInfo{
