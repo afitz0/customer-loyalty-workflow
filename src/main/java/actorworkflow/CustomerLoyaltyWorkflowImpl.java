@@ -32,10 +32,10 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
         this.customer = customer;
         WorkflowInfo info = Workflow.getInfo();
 
-        logger.info("Started workflow. Customer is {}", customer);
+        logger.info("Started workflow. Customer is {}", this.customer);
 
         if (info.getContinuedExecutionRunId().isEmpty()) {
-            String tier = customer.status().name();
+            String tier = this.customer.status().name();
             activities.sendEmail("Welcome to our loyalty program! You're starting out at the '%s' tier."
                     .formatted(tier));
         }
@@ -45,7 +45,7 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
             Workflow.await(() -> !accountActive || info.getHistoryLength() > Shared.HISTORY_THRESHOLD);
             if (accountActive) {
                 logger.info("Account still active, history limit crossed limit; continuing-as-new?");
-                Workflow.continueAsNew(customer);
+                Workflow.continueAsNew(this.customer);
             } else {
                 logger.info("Account canceled. Closing workflow.");
                 return "Done";

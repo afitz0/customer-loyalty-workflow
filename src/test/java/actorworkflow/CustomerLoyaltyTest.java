@@ -51,7 +51,40 @@ public class CustomerLoyaltyTest {
     @Test
     public void testAddGuest() {
         CustomerLoyaltyActivities activities = mock(CustomerLoyaltyActivities.class);
-        testWorkflowRule.getWorker().registerActivitiesImplementations(activities);
+
+        // Get a workflow stub using the same task queue the worker uses.
+        WorkflowOptions workflowOptions =
+                WorkflowOptions.newBuilder()
+                        .setTaskQueue(testWorkflowRule.getTaskQueue())
+                        .setWorkflowIdReusePolicy(
+                                WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
+                        .setWorkflowId(Shared.WORKFLOW_ID_FORMAT.formatted("host"))
+                        .build();
+        CustomerLoyaltyWorkflow workflow =
+                testWorkflowRule
+                        .getWorkflowClient()
+                        .newWorkflowStub(CustomerLoyaltyWorkflow.class, workflowOptions);
+
+        // Start workflow asynchronously to not use another thread to signal.
+        var customer = new Customer("host");
+        WorkflowClient.start(workflow::customerLoyalty, customer);
+
+        var guest = new Customer("guest", "", 0, StatusTier.STATUS_TIERS.get(4), new ArrayList<>());
+        workflow.inviteGuest(guest);
+
+        CustomerLoyaltyWorkflow child = testWorkflowRule
+                .getWorkflowClient()
+                .newWorkflowStub(CustomerLoyaltyWorkflow.class,
+                        WorkflowOptions.newBuilder()
+                                .setTaskQueue(testWorkflowRule.getTaskQueue())
+                                .setWorkflowId(Shared.WORKFLOW_ID_FORMAT.formatted(guest.customerId()))
+                                .build());
+        assertEquals(child.getStatus(),  StatusTier.STATUS_TIERS.get(3));
+    }
+
+    @Test
+    public void testAddGuestTwice() {
+        CustomerLoyaltyActivities activities = mock(CustomerLoyaltyActivities.class);
 
         // Get a workflow stub using the same task queue the worker uses.
         WorkflowOptions workflowOptions =
@@ -71,6 +104,7 @@ public class CustomerLoyaltyTest {
         WorkflowClient.start(workflow::customerLoyalty, customer);
 
         var guest = new Customer("guest");
+        workflow.inviteGuest(guest);
         workflow.inviteGuest(guest);
     }
 }
