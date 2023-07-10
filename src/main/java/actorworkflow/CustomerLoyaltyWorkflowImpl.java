@@ -35,8 +35,7 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
 
         if (info.getContinuedExecutionRunId().isEmpty()) {
             String tier = this.customer.status().name();
-            activities.sendEmail("Welcome to our loyalty program! You're starting out at the '%s' tier."
-                    .formatted(tier));
+            activities.sendEmail(EmailStrings.EMAIL_WELCOME.formatted(tier));
         }
 
         // block on everything
@@ -63,8 +62,7 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
         if (customer.status().minimumPoints() < tierToPromoteTo.minimumPoints()) {
             logger.info("Promoting customer!");
             customer = customer.withStatus(tierToPromoteTo);
-            activities.sendEmail("Congratulations! You've been promoted to the '%s' tier!"
-                    .formatted(tierToPromoteTo.name()));
+            activities.sendEmail(EmailStrings.EMAIL_PROMOTED.formatted(tierToPromoteTo.name()));
         }
     }
 
@@ -115,10 +113,9 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
 //            childWorkflowToSignal.signal("ensureMinimumStatus", guestMinStatus);
                 child.ensureMinimumStatus(guestMinStatus);
 
-                activities.sendEmail("Your guest already has an account, but we've made sure they're at least '%s' status!"
-                        .formatted(guestMinStatus.name()));
+                activities.sendEmail(EmailStrings.EMAIL_GUEST_MIN_STATUS.formatted(guestMinStatus.name()));
             } else {
-                activities.sendEmail("Your guest has been invited!");
+                activities.sendEmail(EmailStrings.EMAIL_GUEST_INVITED);
             }
         }
     }

@@ -154,10 +154,9 @@ public class CustomerLoyaltyTest {
         testWorkflowRule.getTestEnvironment().sleep(Duration.ofSeconds(order + 1));
 
         verify(activities, times(1))
-                .sendEmail("Your guest has been invited!");
+                .sendEmail(EmailStrings.EMAIL_GUEST_INVITED);
         verify(activities, times(1))
-                .sendEmail("Your guest already has an account, but we've made sure they're at least '%s' status!"
-                        .formatted(StatusTier.STATUS_TIERS.get(3).name()));
+                .sendEmail(EmailStrings.EMAIL_GUEST_MIN_STATUS.formatted(StatusTier.STATUS_TIERS.get(3).name()));
 
         testWorkflowRule.getTestEnvironment().shutdown();
     }
