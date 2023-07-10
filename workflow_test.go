@@ -20,7 +20,6 @@ func Test_Workflow(t *testing.T) {
 		LoyaltyPoints: 0,
 		StatusLevel:   0,
 		Name:          "Customer",
-		Guests:        []string{},
 		AccountActive: true,
 	}
 	env.RegisterDelayedCallback(func() {
@@ -58,7 +57,6 @@ func Test_AddPoints(t *testing.T) {
 		LoyaltyPoints: 0,
 		StatusLevel:   0,
 		Name:          "Customer",
-		Guests:        []string{},
 		AccountActive: true,
 	}
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
@@ -92,7 +90,6 @@ func Test_AddPointsForSinglePromo(t *testing.T) {
 		LoyaltyPoints: 0,
 		StatusLevel:   0,
 		Name:          "Customer",
-		Guests:        []string{},
 		AccountActive: true,
 	}
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
@@ -129,7 +126,6 @@ func Test_AddPointsForMultiPromo(t *testing.T) {
 		LoyaltyPoints: 0,
 		StatusLevel:   0,
 		Name:          "Customer",
-		Guests:        []string{},
 		AccountActive: true,
 	}
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
@@ -203,7 +199,6 @@ func Test_InviteGuest(t *testing.T) {
 		LoyaltyPoints: 0,
 		StatusLevel:   1,
 		Name:          "Customer",
-		Guests:        []string{},
 		AccountActive: true,
 	}
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
@@ -246,7 +241,6 @@ func Test_QueryGuests(t *testing.T) {
 		LoyaltyPoints: 0,
 		StatusLevel:   1,
 		Name:          "Customer",
-		Guests:        []string{},
 		AccountActive: true,
 	}
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
@@ -298,7 +292,6 @@ func Test_InviteGuestPreviouslyCanceled(t *testing.T) {
 		LoyaltyPoints: 0,
 		StatusLevel:   2,
 		Name:          "Customer",
-		Guests:        []string{},
 		AccountActive: true,
 	}
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)

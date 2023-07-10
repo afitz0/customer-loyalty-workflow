@@ -28,7 +28,8 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 	activities := Activities{}
 	var errSignal error
 
-	validateCustomerInfo(customer)
+	logger.Info("Validating customer info")
+	validateCustomerInfo(&customer)
 
 	if info.ContinuedExecutionRunID == "" {
 		err = workflow.ExecuteActivity(ctx, activities.SendEmail,
@@ -77,15 +78,17 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 				var guestId string
 				c.Receive(ctx, &guestId)
 
+				logger.Info("Customer is allowed to invite guests. Attempting to invite.",
+					"GuestId", guestId)
+
 				guest := CustomerInfo{
 					CustomerId:    guestId,
 					AccountActive: true,
 				}
 
-				customer.Guests = append(customer.Guests, guest.CustomerId)
+				customer.Guests[guestId] = struct{}{}
 				previousTier := StatusTiers[max(customer.StatusLevel-1, 0)]
 
-				// attempt to start child workflow
 				err, guestWorkflow := startGuestWorkflow(ctx, guest)
 				logger.Info("Results from starting guest", "error", err, "guest", guestWorkflow)
 
@@ -94,6 +97,7 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 					err = guestWorkflow.SignalChildWorkflow(ctx, SignalEnsureMinimumStatus, previousTier).
 						Get(ctx, nil)
 					if _, ok := err.(*serviceerror.WorkflowExecutionAlreadyStarted); ok {
+						logger.Info("Failed to signal 'already started' guest account; child workflow probably closed.")
 						emailToSend = EmailGuestCanceled
 					} else if err != nil {
 						logger.Error("Could not signal guest/child workflow.")
@@ -106,6 +110,7 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 					return
 				}
 			} else {
+				logger.Info("Customer does not have sufficient status to invite guests.")
 				emailToSend = EmailInsufficientPoints
 			}
 
@@ -173,7 +178,14 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 	err = workflow.SetQueryHandler(ctx, QueryGetGuests,
 		func() ([]string, error) {
 			logger.Info("Sending back guest list", "Guests", customer.Guests)
-			return customer.Guests, nil
+			guestIds := make([]string, len(customer.Guests))
+
+			i := 0
+			for k := range customer.Guests {
+				guestIds[i] = k
+				i++
+			}
+			return guestIds, nil
 		})
 
 	// Block on everything. Continue-As-New on history length; size of activities in this workflow are small enough
@@ -209,7 +221,7 @@ func startGuestWorkflow(ctx workflow.Context, guest CustomerInfo) (err error, ch
 	return err, child
 }
 
-func validateCustomerInfo(customer CustomerInfo) {
+func validateCustomerInfo(customer *CustomerInfo) {
 	if customer.StatusLevel >= len(StatusTiers) {
 		customer.StatusLevel = len(StatusTiers) - 1
 	}
@@ -217,7 +229,7 @@ func validateCustomerInfo(customer CustomerInfo) {
 		customer.StatusLevel = 0
 	}
 
-	if customer.Guests == nil {
-		customer.Guests = make([]string, StatusTiers[customer.StatusLevel].GuestsAllowed)
+	if len(customer.Guests) == 0 {
+		customer.Guests = make(map[string]struct{}, StatusTiers[customer.StatusLevel].GuestsAllowed)
 	}
 }

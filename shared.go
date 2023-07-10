@@ -59,7 +59,7 @@ type CustomerInfo struct {
 	LoyaltyPoints int
 	StatusLevel   int
 	Name          string
-	Guests        []string
+	Guests        map[string]struct{}
 	AccountActive bool
 }
 
