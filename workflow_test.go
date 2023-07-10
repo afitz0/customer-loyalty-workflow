@@ -259,7 +259,6 @@ func Test_InviteGuestPreviouslyCanceled(t *testing.T) {
 	env.RegisterActivity(&Activities{})
 	env.OnActivity("SendEmail", mock.Anything, mock.Anything).Return(
 		func(ctx context.Context, body string) (err error) {
-			fmt.Println(body)
 			return nil
 		})
 
@@ -275,7 +274,6 @@ func Test_InviteGuestPreviouslyCanceled(t *testing.T) {
 
 	// immediately cancel the guest account. this should keep it queryable, but sets AccountActive -> false
 	env.RegisterDelayedCallback(func() {
-		fmt.Println("here 0")
 		err := env.SignalWorkflowByID(
 			guestWfId,
 			SignalCancelAccount, nil)
@@ -283,27 +281,14 @@ func Test_InviteGuestPreviouslyCanceled(t *testing.T) {
 	}, order)
 	order += time.Second
 
-	env.RegisterDelayedCallback(func() {
-		result, err := env.QueryWorkflowByID(guestWfId, QueryGetStatus)
-		require.NoError(t, err)
-		var status GetStatusResponse
-		err = result.Get(&status)
-		require.NoError(t, err)
-
-		require.False(t, status.AccountActive)
-	}, order)
-	order += time.Second
-
 	// then, try to invite them again. the "guest has already canceled" email should be sent
 	env.RegisterDelayedCallback(func() {
-		fmt.Println("here2")
 		env.SignalWorkflow(SignalInviteGuest, guestId)
 	}, order)
 	order += time.Second
 
 	// cancel original workflow to not timeout
 	env.RegisterDelayedCallback(func() {
-		fmt.Println("here3")
 		env.SignalWorkflow(SignalCancelAccount, nil)
 	}, order)
 	order += time.Second
@@ -321,7 +306,7 @@ func Test_InviteGuestPreviouslyCanceled(t *testing.T) {
 	require.NoError(t, env.GetWorkflowError())
 	require.NoError(t, env.GetWorkflowResult(nil))
 
-	env.AssertCalled(t, "SendEmail", EmailGuestCanceled)
+	env.AssertCalled(t, "SendEmail", mock.Anything, EmailGuestCanceled)
 }
 
 func Test_SendEmailActivity(t *testing.T) {

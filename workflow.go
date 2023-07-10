@@ -5,7 +5,6 @@ import (
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/sdk/temporal"
-	"reflect"
 	"time"
 
 	"go.temporal.io/sdk/workflow"
@@ -78,51 +77,33 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 				var guestId string
 				c.Receive(ctx, &guestId)
 
-				var status GetStatusResponse
-				err := workflow.ExecuteActivity(ctx, activities.QueryCustomerStatus, guestId).
-					Get(ctx, &status)
-				if err != nil {
-					logger.Error("Error getting potential guest customer status", "Error", err)
-					errSignal = err
-					return
-				}
-
-				logger.Info("Got status response", "Response", status)
 				guest := CustomerInfo{
 					CustomerId:    guestId,
-					LoyaltyPoints: status.Points,
-					StatusLevel:   status.StatusLevel,
-					AccountActive: status.AccountActive,
+					AccountActive: true,
 				}
 
-				if guest.AccountActive {
-					previousTier := StatusTiers[min(customer.StatusLevel-1, 0)]
-					err = startGuestWorkflow(ctx, guest, previousTier)
-					if err != nil {
-						logger.Error("Could not start guest/child workflow.",
-							"Error", err,
-							"Error Type", reflect.ValueOf(err).Type())
+				customer.Guests = append(customer.Guests, guest.CustomerId)
+				previousTier := StatusTiers[max(customer.StatusLevel-1, 0)]
+
+				// attempt to start child workflow
+				err, guestWorkflow := startGuestWorkflow(ctx, guest)
+				logger.Info("Results from starting guest", "error", err, "guest", guestWorkflow)
+
+				if _, ok := err.(*serviceerror.WorkflowExecutionAlreadyStarted); ok {
+					emailToSend = EmailGuestInvited
+					err = guestWorkflow.SignalChildWorkflow(ctx, SignalEnsureMinimumStatus, previousTier).
+						Get(ctx, nil)
+					if _, ok := err.(*serviceerror.WorkflowExecutionAlreadyStarted); ok {
+						emailToSend = EmailGuestCanceled
+					} else if err != nil {
+						logger.Error("Could not signal guest/child workflow.")
 						errSignal = err
 						return
 					}
-
-					if _, ok := err.(*serviceerror.WorkflowExecutionAlreadyStarted); ok {
-						err = workflow.SignalExternalWorkflow(ctx,
-							fmt.Sprintf(CustomerWorkflowIdFormat, guestId),
-							"",
-							SignalEnsureMinimumStatus,
-							previousTier).Get(ctx, nil)
-						if err != nil {
-							errSignal = err
-							logger.Error("Could not signal child to ensure min status", err)
-							return
-						}
-					} else {
-						customer.Guests = append(customer.Guests, guest.CustomerId)
-						emailToSend = EmailGuestInvited
-					}
-				} else {
-					emailToSend = EmailGuestCanceled
+				} else if err != nil {
+					logger.Error("Could not start guest/child workflow.")
+					errSignal = err
+					return
 				}
 			} else {
 				emailToSend = EmailInsufficientPoints
@@ -214,7 +195,7 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 	return nil
 }
 
-func startGuestWorkflow(ctx workflow.Context, guest CustomerInfo, minStatus StatusTier) error {
+func startGuestWorkflow(ctx workflow.Context, guest CustomerInfo) (err error, child workflow.ChildWorkflowFuture) {
 	childWorkflowOptions := workflow.ChildWorkflowOptions{
 		WorkflowID:            fmt.Sprintf(CustomerWorkflowIdFormat, guest.CustomerId),
 		ParentClosePolicy:     enums.PARENT_CLOSE_POLICY_ABANDON,
@@ -222,10 +203,10 @@ func startGuestWorkflow(ctx workflow.Context, guest CustomerInfo, minStatus Stat
 	}
 	ctx = workflow.WithChildOptions(ctx, childWorkflowOptions)
 
-	childWorkflowFuture := workflow.ExecuteChildWorkflow(ctx, CustomerLoyaltyWorkflow, guest)
-	return childWorkflowFuture.
-		SignalChildWorkflow(ctx, SignalEnsureMinimumStatus, minStatus).
-		Get(ctx, nil)
+	child = workflow.ExecuteChildWorkflow(ctx, CustomerLoyaltyWorkflow, guest)
+	// wait for it to start before returning.
+	err = child.GetChildWorkflowExecution().Get(ctx, nil)
+	return err, child
 }
 
 func validateCustomerInfo(customer CustomerInfo) {
