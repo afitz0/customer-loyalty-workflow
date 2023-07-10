@@ -6,7 +6,6 @@ import io.temporal.api.enums.v1.ParentClosePolicy;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.workflow.*;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -20,7 +19,7 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
                     CustomerLoyaltyActivities.class,
                     ActivityOptions.newBuilder()
                             .setStartToCloseTimeout(Duration.ofSeconds(2))
-                                    .build());
+                            .build());
 
     boolean accountActive = true;
 
@@ -73,7 +72,7 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
     public void inviteGuest(Customer guest) {
         logger.info("Attempting to invite guest {}", guest);
         if (Customer.canAddGuest(customer)) {
-            logger.info("Attempting to invite a guest.");
+            logger.info("Customer is allowed to invite guests; attempting to start guest workflow.");
             customer.guests().add(guest);
 
             StatusTier guestMinStatus = StatusTier.previous(customer.status());
@@ -94,7 +93,7 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
                 Async.procedure(child::customerLoyalty, guest);
 
                 // Wait for child to start
-                childExecution.get();
+                WorkflowExecution ce = childExecution.get();
             } catch (WorkflowExecutionAlreadyStarted e) {
                 logger.info("Guest customer workflow already started and is a direct child.");
                 alreadyStarted = true;
@@ -115,6 +114,11 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
                 logger.info("Signaling to ensure that they're at least \"{}\" status", guestMinStatus.name());
 //            childWorkflowToSignal.signal("ensureMinimumStatus", guestMinStatus);
                 child.ensureMinimumStatus(guestMinStatus);
+
+                activities.sendEmail("Your guest already has an account, but we've made sure they're at least '%s' status!"
+                        .formatted(guestMinStatus.name()));
+            } else {
+                activities.sendEmail("Your guest has been invited!");
             }
         }
     }

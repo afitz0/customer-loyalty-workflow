@@ -1,16 +1,19 @@
 package actorworkflow;
 
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
-
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.testing.TestWorkflowRule;
 import org.junit.Rule;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
+
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.*;
 
 /**
  * Unit test for {@link CustomerLoyaltyWorkflow}.
@@ -21,11 +24,15 @@ public class CustomerLoyaltyTest {
     public TestWorkflowRule testWorkflowRule =
             TestWorkflowRule.newBuilder()
                     .setWorkflowTypes(CustomerLoyaltyWorkflowImpl.class)
-                    .setActivityImplementations(new CustomerLoyaltyActivitiesImpl())
+                    .setDoNotStart(true)
                     .build();
 
     @Test
     public void testAddPoints() {
+        CustomerLoyaltyActivities activities = mock(CustomerLoyaltyActivities.class);
+        testWorkflowRule.getWorker().registerActivitiesImplementations(activities);
+        testWorkflowRule.getTestEnvironment().start();
+
         // Get a workflow stub using the same task queue the worker uses.
         WorkflowOptions workflowOptions =
                 WorkflowOptions.newBuilder()
@@ -45,12 +52,18 @@ public class CustomerLoyaltyTest {
         workflow.addLoyaltyPoints(targetStatus.minimumPoints());
         StatusTier customerStatus = workflow.getStatus();
         assertEquals(customerStatus, targetStatus);
-    }
 
+        workflow.cancelAccount();
+        testWorkflowRule.getTestEnvironment().sleep(Duration.ofSeconds(1));
+
+        testWorkflowRule.getTestEnvironment().shutdown();
+    }
 
     @Test
     public void testAddGuest() {
         CustomerLoyaltyActivities activities = mock(CustomerLoyaltyActivities.class);
+        testWorkflowRule.getWorker().registerActivitiesImplementations(activities);
+        testWorkflowRule.getTestEnvironment().start();
 
         // Get a workflow stub using the same task queue the worker uses.
         WorkflowOptions workflowOptions =
@@ -66,10 +79,10 @@ public class CustomerLoyaltyTest {
                         .newWorkflowStub(CustomerLoyaltyWorkflow.class, workflowOptions);
 
         // Start workflow asynchronously to not use another thread to signal.
-        var customer = new Customer("host");
+        var customer = new Customer("host", "", 0, StatusTier.STATUS_TIERS.get(4), new ArrayList<>());
         WorkflowClient.start(workflow::customerLoyalty, customer);
 
-        var guest = new Customer("guest", "", 0, StatusTier.STATUS_TIERS.get(4), new ArrayList<>());
+        var guest = new Customer("guest");
         workflow.inviteGuest(guest);
 
         CustomerLoyaltyWorkflow child = testWorkflowRule
@@ -79,17 +92,25 @@ public class CustomerLoyaltyTest {
                                 .setTaskQueue(testWorkflowRule.getTaskQueue())
                                 .setWorkflowId(Shared.WORKFLOW_ID_FORMAT.formatted(guest.customerId()))
                                 .build());
-        assertEquals(child.getStatus(),  StatusTier.STATUS_TIERS.get(3));
+
+        testWorkflowRule.getTestEnvironment().registerDelayedCallback(Duration.ofSeconds(1), () -> {
+            assertEquals(child.getStatus(), StatusTier.STATUS_TIERS.get(3));
+        });
+
+        testWorkflowRule.getTestEnvironment().shutdown();
     }
 
     @Test
     public void testAddGuestTwice() {
         CustomerLoyaltyActivities activities = mock(CustomerLoyaltyActivities.class);
+        testWorkflowRule.getWorker().registerActivitiesImplementations(activities);
+        testWorkflowRule.getTestEnvironment().start();
 
         // Get a workflow stub using the same task queue the worker uses.
         WorkflowOptions workflowOptions =
                 WorkflowOptions.newBuilder()
                         .setTaskQueue(testWorkflowRule.getTaskQueue())
+                        .setWorkflowId(Shared.WORKFLOW_ID_FORMAT.formatted("host"))
                         .setWorkflowIdReusePolicy(
                                 WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
                         .build();
@@ -98,13 +119,46 @@ public class CustomerLoyaltyTest {
                         .getWorkflowClient()
                         .newWorkflowStub(CustomerLoyaltyWorkflow.class, workflowOptions);
 
-        // Start workflow asynchronously to not use another thread to signal.
-        var customer = new Customer("host");
-        customer = customer.withStatus(new StatusTier("", 0, 1000));
-        WorkflowClient.start(workflow::customerLoyalty, customer);
+        var customer = new Customer("host", "", 0, StatusTier.STATUS_TIERS.get(4), new ArrayList<>());
+        WorkflowExecution e = WorkflowClient.start(workflow::customerLoyalty, customer);
 
+        int order = 0;
         var guest = new Customer("guest");
-        workflow.inviteGuest(guest);
-        workflow.inviteGuest(guest);
+        testWorkflowRule.getTestEnvironment().registerDelayedCallback(Duration.ofSeconds(order++), () -> {
+            workflow.inviteGuest(guest);
+        });
+
+        testWorkflowRule.getTestEnvironment().registerDelayedCallback(Duration.ofSeconds(order++), () -> {
+            workflow.inviteGuest(guest);
+        });
+
+        testWorkflowRule.getTestEnvironment().registerDelayedCallback(Duration.ofSeconds(order++), workflow::cancelAccount);
+
+        CustomerLoyaltyWorkflow child = testWorkflowRule
+                .getWorkflowClient()
+                .newWorkflowStub(CustomerLoyaltyWorkflow.class,
+                        WorkflowOptions.newBuilder()
+                                .setTaskQueue(testWorkflowRule.getTaskQueue())
+                                .setWorkflowId(Shared.WORKFLOW_ID_FORMAT.formatted(guest.customerId()))
+                                .build());
+
+        testWorkflowRule.getTestEnvironment().registerDelayedCallback(Duration.ofSeconds(order++), () -> {
+            // "start" the workflow, to make sure we have the current execution, but expect it to throw
+            try {
+                WorkflowClient.start(child::customerLoyalty, guest);
+            } catch (WorkflowExecutionAlreadyStarted ignored) {
+            }
+            child.cancelAccount();
+        });
+
+        testWorkflowRule.getTestEnvironment().sleep(Duration.ofSeconds(order + 1));
+
+        verify(activities, times(1))
+                .sendEmail("Your guest has been invited!");
+        verify(activities, times(1))
+                .sendEmail("Your guest already has an account, but we've made sure they're at least '%s' status!"
+                        .formatted(StatusTier.STATUS_TIERS.get(3).name()));
+
+        testWorkflowRule.getTestEnvironment().shutdown();
     }
 }
