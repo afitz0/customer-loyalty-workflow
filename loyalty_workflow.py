@@ -83,7 +83,6 @@ class CustomerLoyaltyWorkflow:
 
         guest = Customer(id=guest_id)
         child_workflow_id = CUSTOMER_WORKFLOW_ID_FORMAT.format(guest_id)
-        child_handle: WorkflowHandle
         try:
             child_handle = await workflow.start_child_workflow(
                 CustomerLoyaltyWorkflow.run,
@@ -94,8 +93,8 @@ class CustomerLoyaltyWorkflow:
             )
         except WorkflowAlreadyStartedError:
             logging.info("Child workflow already started")
-            # child_handle = workflow.get_external_workflow_handle(child_workflow_id)
-            
+            child_handle: WorkflowHandle = workflow.get_external_workflow_handle(child_workflow_id)
+
         child_info = await child_handle.describe()
         isclosed = child_info.close_time is not None
 
@@ -111,6 +110,7 @@ class CustomerLoyaltyWorkflow:
                 email_strings.EMAIL_GUEST_INVITED,
                 start_to_close_timeout=timedelta(seconds=5),
             )
+            await child_handle.signal(SIGNAL_ENSURE_MINIMUM_STATUS, self.customer.status.previous())
 
     @workflow.signal(name=SIGNAL_ENSURE_MINIMUM_STATUS)
     async def ensure_minimum_status(self, min_status: StatusTier):

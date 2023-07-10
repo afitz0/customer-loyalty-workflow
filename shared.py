@@ -1,8 +1,8 @@
-from dataclasses import dataclass, field
-from dataclasses_json import config, dataclass_json
-
-from typing import Optional
 import json
+from dataclasses import dataclass, field
+from typing import Optional, Iterable, Any
+
+from dataclasses_json import config
 
 TASK_QUEUE = "CustomerLoyaltyTaskQueue"
 CUSTOMER_WORKFLOW_ID_FORMAT = "customer-{}"
@@ -42,7 +42,7 @@ class GetStatusResponse:
     account_active: bool
 
 
-class Status:
+class Status(Iterable[tuple[Any, Any]]):
     _level: int
 
     MEMBER = "Member"
@@ -65,7 +65,7 @@ class Status:
 
         :param level:Numeric ranking for the level
         """
-        self._level = level
+        self._level = max(level, 0)
 
     @property
     def level(self) -> int:
@@ -108,6 +108,10 @@ class Status:
         diff = new_level - self._level
         self._level = new_level
         return diff
+
+    def previous(self) -> 'Status':
+        i = self._level
+        return Status(i - 1)
 
     def ensure_at_least(self, status: StatusTier) -> None:
         min_level = Status.LEVELS.index(status)
