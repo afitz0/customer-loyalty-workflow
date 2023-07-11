@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.temporal.io/sdk/testsuite"
+	"go.temporal.io/sdk/worker"
 	"testing"
 	"time"
 )
@@ -310,5 +311,12 @@ func Test_SendEmailActivity(t *testing.T) {
 	env.RegisterActivity(a)
 
 	_, err := env.ExecuteActivity(a.SendEmail, "Hello, World!")
+	require.NoError(t, err)
+}
+
+func Test_SimpleReplay(t *testing.T) {
+	replayer := worker.NewWorkflowReplayer()
+	replayer.RegisterWorkflow(CustomerLoyaltyWorkflow)
+	err := replayer.ReplayWorkflowHistoryFromJSONFile(nil, "simple_replay.json")
 	require.NoError(t, err)
 }
