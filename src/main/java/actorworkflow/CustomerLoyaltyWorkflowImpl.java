@@ -31,7 +31,7 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
         this.customer = customer;
         WorkflowInfo info = Workflow.getInfo();
 
-        logger.info("Started workflow. Customer is {}", this.customer);
+        logger.info("Started workflow. Customer: {}.", this.customer);
 
         if (info.getContinuedExecutionRunId().isEmpty()) {
             String tier = this.customer.status().name();
@@ -42,7 +42,7 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
         while (true) {
             Workflow.await(() -> !accountActive || info.getHistoryLength() > Shared.HISTORY_THRESHOLD);
             if (accountActive) {
-                logger.info("Account still active, history limit crossed limit; continuing-as-new?");
+                logger.info("Account still active, history size crossed limit; continuing-as-new.");
                 Workflow.continueAsNew(this.customer);
             } else {
                 logger.info("Account canceled. Closing workflow.");
@@ -54,7 +54,7 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
     @Override
     public void addLoyaltyPoints(int pointsToAdd) {
         customer = customer.withPoints(customer.loyaltyPoints() + pointsToAdd);
-        logger.info("Added {} points to customer. Loyalty points now {}",
+        logger.info("Added {} points to customer. Total loyalty points now {}.",
                 pointsToAdd, customer.loyaltyPoints());
 
         StatusTier tierToPromoteTo = StatusTier.getMaxTier(customer.loyaltyPoints());
@@ -68,9 +68,10 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
 
     @Override
     public void inviteGuest(Customer guest) {
-        logger.info("Attempting to invite guest {}", guest);
+        logger.info("Checking to see if customer can invite guests.");
         if (Customer.canAddGuest(customer)) {
-            logger.info("Customer is allowed to invite guests; attempting to start guest workflow.");
+            logger.info("Customer is allowed to invite guests; attempting to start workflow for guest ID {}.",
+                    guest.customerId());
             customer.guests().add(guest);
 
             StatusTier guestMinStatus = StatusTier.previous(customer.status());
@@ -108,9 +109,7 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
                 // Reset child to ensure we're actually working with the latest running execution
                 child = Workflow.newExternalWorkflowStub(CustomerLoyaltyWorkflow.class, guestWorkflowId);
 
-//            ExternalWorkflowStub childWorkflowToSignal = Workflow.newUntypedExternalWorkflowStub(guestWorkflowId);
-                logger.info("Signaling to ensure that they're at least \"{}\" status", guestMinStatus.name());
-//            childWorkflowToSignal.signal("ensureMinimumStatus", guestMinStatus);
+                logger.info("Signaling to ensure that they're at least \"{}\" status.", guestMinStatus.name());
                 child.ensureMinimumStatus(guestMinStatus);
 
                 activities.sendEmail(EmailStrings.EMAIL_GUEST_MIN_STATUS.formatted(guestMinStatus.name()));

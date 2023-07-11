@@ -19,7 +19,7 @@ public class Worker {
         worker.registerWorkflowImplementationTypes(CustomerLoyaltyWorkflowImpl.class);
         worker.registerActivitiesImplementations(new CustomerLoyaltyActivitiesImpl());
 
-        logger.debug("Starting worker");
+        logger.debug("Starting worker.");
         factory.start();
     }
 }
