@@ -1,9 +1,9 @@
-module starter
+module github.com/afitz0/customer-loyalty-workflow
 
 go 1.20
 
 require (
-	github.com/golang/mock v1.6.0
+	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.2
 	go.temporal.io/api v1.19.1-0.20230322213042-07fb271d475b
 	go.temporal.io/sdk v1.22.2
@@ -16,6 +16,7 @@ require (
 	github.com/gogo/googleapis v1.4.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/gogo/status v1.1.1 // indirect
+	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect

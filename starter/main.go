@@ -9,8 +9,9 @@ import (
 
 	"go.uber.org/zap/zapcore"
 
-	"starter"
-	"starter/zapadapter"
+	wf "github.com/afitz0/customer-loyalty-workflow"
+	"github.com/afitz0/customer-loyalty-workflow/common"
+	"github.com/afitz0/customer-loyalty-workflow/zapadapter"
 )
 
 func main() {
@@ -23,7 +24,7 @@ func main() {
 	}
 	defer c.Close()
 
-	customer := starter.CustomerInfo{
+	customer := wf.CustomerInfo{
 		CustomerId:    "123",
 		LoyaltyPoints: 0,
 		StatusLevel:   0,
@@ -32,11 +33,11 @@ func main() {
 		AccountActive: true,
 	}
 	workflowOptions := client.StartWorkflowOptions{
-		ID:        fmt.Sprintf(starter.CustomerWorkflowIdFormat, customer.CustomerId),
-		TaskQueue: starter.TaskQueue,
+		ID:        fmt.Sprintf(common.CustomerWorkflowIdFormat, customer.CustomerId),
+		TaskQueue: common.TaskQueue,
 	}
 
-	we, err := c.ExecuteWorkflow(context.Background(), workflowOptions, starter.CustomerLoyaltyWorkflow, customer)
+	we, err := c.ExecuteWorkflow(context.Background(), workflowOptions, wf.CustomerLoyaltyWorkflow, customer)
 	if err != nil {
 		log.Fatalln("Unable to execute workflow.", err)
 	}
