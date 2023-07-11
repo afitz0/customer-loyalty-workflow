@@ -73,8 +73,7 @@ class Status(Iterable[tuple[Any, Any]]):
 
     @level.setter
     def level(self, value) -> None:
-        value = max(min(len(Status.LEVELS) - 1, value), 0)
-        self._level = value
+        self._level = max(min(len(Status.LEVELS) - 1, value), 0)
 
     @property
     def name(self) -> str:
