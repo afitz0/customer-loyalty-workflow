@@ -1,0 +1,663 @@
+{
+  "events": [
+    {
+      "eventId": "1",
+      "eventTime": "2023-07-10T23:17:25.280052Z",
+      "eventType": "WorkflowExecutionStarted",
+      "version": "0",
+      "taskId": "1048587",
+      "workerMayIgnore": false,
+      "workflowExecutionStartedEventAttributes": {
+        "workflowType": {
+          "name": "CustomerLoyaltyWorkflow"
+        },
+        "parentWorkflowNamespace": "",
+        "parentWorkflowNamespaceId": "",
+        "parentWorkflowExecution": null,
+        "parentInitiatedEventId": "0",
+        "taskQueue": {
+          "name": "CustomerLoyaltyTaskQueue",
+          "kind": "Normal",
+          "normalName": ""
+        },
+        "input": {
+          "payloads": [
+            {
+              "metadata": {
+                "encoding": "anNvbi9wbGFpbg=="
+              },
+              "data": "eyJhY2NvdW50QWN0aXZlIjp0cnVlLCJjdXN0b21lcklkIjoiMTIzIn0="
+            }
+          ]
+        },
+        "workflowExecutionTimeout": "0s",
+        "workflowRunTimeout": "0s",
+        "workflowTaskTimeout": "10s",
+        "continuedExecutionRunId": "",
+        "initiator": "Unspecified",
+        "continuedFailure": null,
+        "lastCompletionResult": null,
+        "originalExecutionRunId": "474cbf78-4c57-47a5-943b-43806cf25cb7",
+        "identity": "temporal-cli:fitz@Andrew-Fitz-Gibbons-MacBook-Pro.local",
+        "firstExecutionRunId": "474cbf78-4c57-47a5-943b-43806cf25cb7",
+        "retryPolicy": null,
+        "attempt": 1,
+        "workflowExecutionExpirationTime": null,
+        "cronSchedule": "",
+        "firstWorkflowTaskBackoff": "0s",
+        "memo": null,
+        "searchAttributes": {
+          "indexedFields": {}
+        },
+        "prevAutoResetPoints": null,
+        "header": {
+          "fields": {}
+        },
+        "parentInitiatedEventVersion": "0",
+        "workflowId": "customer-123",
+        "sourceVersionStamp": null
+      }
+    },
+    {
+      "eventId": "2",
+      "eventTime": "2023-07-10T23:17:25.280074Z",
+      "eventType": "WorkflowTaskScheduled",
+      "version": "0",
+      "taskId": "1048588",
+      "workerMayIgnore": false,
+      "workflowTaskScheduledEventAttributes": {
+        "taskQueue": {
+          "name": "CustomerLoyaltyTaskQueue",
+          "kind": "Normal",
+          "normalName": ""
+        },
+        "startToCloseTimeout": "10s",
+        "attempt": 1
+      }
+    },
+    {
+      "eventId": "3",
+      "eventTime": "2023-07-10T23:17:25.283631Z",
+      "eventType": "WorkflowTaskStarted",
+      "version": "0",
+      "taskId": "1048593",
+      "workerMayIgnore": false,
+      "workflowTaskStartedEventAttributes": {
+        "scheduledEventId": "2",
+        "identity": "14627@Andrew-Fitz-Gibbons-MacBook-Pro.local@",
+        "requestId": "4568596a-4816-4da3-a9de-46a908704215",
+        "suggestContinueAsNew": false,
+        "historySizeBytes": "387"
+      }
+    },
+    {
+      "eventId": "4",
+      "eventTime": "2023-07-10T23:17:25.287964Z",
+      "eventType": "WorkflowTaskCompleted",
+      "version": "0",
+      "taskId": "1048597",
+      "workerMayIgnore": false,
+      "workflowTaskCompletedEventAttributes": {
+        "scheduledEventId": "2",
+        "startedEventId": "3",
+        "identity": "14627@Andrew-Fitz-Gibbons-MacBook-Pro.local@",
+        "binaryChecksum": "60b600c17c9acb697db7457cde670f4f",
+        "workerVersion": null,
+        "sdkMetadata": {
+          "coreUsedFlags": [],
+          "langUsedFlags": []
+        },
+        "meteringMetadata": {
+          "nonfirstLocalActivityExecutionAttempts": 0
+        }
+      }
+    },
+    {
+      "eventId": "5",
+      "eventTime": "2023-07-10T23:17:25.288038Z",
+      "eventType": "ActivityTaskScheduled",
+      "version": "0",
+      "taskId": "1048598",
+      "workerMayIgnore": false,
+      "activityTaskScheduledEventAttributes": {
+        "activityId": "fcd5b9ab-aade-3ba3-8f2e-5ef7affee604",
+        "activityType": {
+          "name": "SendEmail"
+        },
+        "taskQueue": {
+          "name": "CustomerLoyaltyTaskQueue",
+          "kind": "Normal",
+          "normalName": ""
+        },
+        "header": {
+          "fields": {}
+        },
+        "input": {
+          "payloads": [
+            {
+              "metadata": {
+                "encoding": "anNvbi9wbGFpbg=="
+              },
+              "data": "IldlbGNvbWUgdG8gb3VyIGxveWFsdHkgcHJvZ3JhbSEgWW91J3JlIHN0YXJ0aW5nIG91dCBhdCAnTWVtYmVyJyBzdGF0dXMuIg=="
+            }
+          ]
+        },
+        "scheduleToCloseTimeout": "0s",
+        "scheduleToStartTimeout": "0s",
+        "startToCloseTimeout": "10s",
+        "heartbeatTimeout": "0s",
+        "workflowTaskCompletedEventId": "4",
+        "retryPolicy": {
+          "initialInterval": "1s",
+          "backoffCoefficient": 2,
+          "maximumInterval": "60s",
+          "maximumAttempts": 0,
+          "nonRetryableErrorTypes": []
+        },
+        "useCompatibleVersion": false
+      }
+    },
+    {
+      "eventId": "6",
+      "eventTime": "2023-07-10T23:17:25.290323Z",
+      "eventType": "ActivityTaskStarted",
+      "version": "0",
+      "taskId": "1048605",
+      "workerMayIgnore": false,
+      "activityTaskStartedEventAttributes": {
+        "scheduledEventId": "5",
+        "identity": "14627@Andrew-Fitz-Gibbons-MacBook-Pro.local@",
+        "requestId": "57c94ace-b49c-46eb-9896-20d12d343e5f",
+        "attempt": 1,
+        "lastFailure": null
+      }
+    },
+    {
+      "eventId": "7",
+      "eventTime": "2023-07-10T23:17:25.292117Z",
+      "eventType": "ActivityTaskCompleted",
+      "version": "0",
+      "taskId": "1048606",
+      "workerMayIgnore": false,
+      "activityTaskCompletedEventAttributes": {
+        "result": null,
+        "scheduledEventId": "5",
+        "startedEventId": "6",
+        "identity": "14627@Andrew-Fitz-Gibbons-MacBook-Pro.local@",
+        "workerVersion": null
+      }
+    },
+    {
+      "eventId": "8",
+      "eventTime": "2023-07-10T23:17:25.292121Z",
+      "eventType": "WorkflowTaskScheduled",
+      "version": "0",
+      "taskId": "1048607",
+      "workerMayIgnore": false,
+      "workflowTaskScheduledEventAttributes": {
+        "taskQueue": {
+          "name": "Andrew-Fitz-Gibbons-MacBook-Pro.local:8da5b6a0-ce91-4ed9-b653-f5336e8f09dc",
+          "kind": "Sticky",
+          "normalName": "CustomerLoyaltyTaskQueue"
+        },
+        "startToCloseTimeout": "10s",
+        "attempt": 1
+      }
+    },
+    {
+      "eventId": "9",
+      "eventTime": "2023-07-10T23:17:25.292786Z",
+      "eventType": "WorkflowTaskStarted",
+      "version": "0",
+      "taskId": "1048611",
+      "workerMayIgnore": false,
+      "workflowTaskStartedEventAttributes": {
+        "scheduledEventId": "8",
+        "identity": "14627@Andrew-Fitz-Gibbons-MacBook-Pro.local@",
+        "requestId": "b35271a0-04e7-40dc-90ae-7a820148e2d3",
+        "suggestContinueAsNew": false,
+        "historySizeBytes": "1157"
+      }
+    },
+    {
+      "eventId": "10",
+      "eventTime": "2023-07-10T23:17:25.299142Z",
+      "eventType": "WorkflowTaskCompleted",
+      "version": "0",
+      "taskId": "1048615",
+      "workerMayIgnore": false,
+      "workflowTaskCompletedEventAttributes": {
+        "scheduledEventId": "8",
+        "startedEventId": "9",
+        "identity": "14627@Andrew-Fitz-Gibbons-MacBook-Pro.local@",
+        "binaryChecksum": "60b600c17c9acb697db7457cde670f4f",
+        "workerVersion": null,
+        "sdkMetadata": {
+          "coreUsedFlags": [],
+          "langUsedFlags": []
+        },
+        "meteringMetadata": {
+          "nonfirstLocalActivityExecutionAttempts": 0
+        }
+      }
+    },
+    {
+      "eventId": "11",
+      "eventTime": "2023-07-10T23:17:33.260416Z",
+      "eventType": "WorkflowExecutionSignaled",
+      "version": "0",
+      "taskId": "1048618",
+      "workerMayIgnore": false,
+      "workflowExecutionSignaledEventAttributes": {
+        "signalName": "addLoyaltyPoints",
+        "input": {
+          "payloads": [
+            {
+              "metadata": {
+                "encoding": "anNvbi9wbGFpbg=="
+              },
+              "data": "NTAwMA=="
+            }
+          ]
+        },
+        "identity": "temporal-cli:fitz@Andrew-Fitz-Gibbons-MacBook-Pro.local",
+        "header": null,
+        "skipGenerateWorkflowTask": false
+      }
+    },
+    {
+      "eventId": "12",
+      "eventTime": "2023-07-10T23:17:33.260420Z",
+      "eventType": "WorkflowTaskScheduled",
+      "version": "0",
+      "taskId": "1048619",
+      "workerMayIgnore": false,
+      "workflowTaskScheduledEventAttributes": {
+        "taskQueue": {
+          "name": "Andrew-Fitz-Gibbons-MacBook-Pro.local:8da5b6a0-ce91-4ed9-b653-f5336e8f09dc",
+          "kind": "Sticky",
+          "normalName": "CustomerLoyaltyTaskQueue"
+        },
+        "startToCloseTimeout": "10s",
+        "attempt": 1
+      }
+    },
+    {
+      "eventId": "13",
+      "eventTime": "2023-07-10T23:17:33.261338Z",
+      "eventType": "WorkflowTaskStarted",
+      "version": "0",
+      "taskId": "1048623",
+      "workerMayIgnore": false,
+      "workflowTaskStartedEventAttributes": {
+        "scheduledEventId": "12",
+        "identity": "14627@Andrew-Fitz-Gibbons-MacBook-Pro.local@",
+        "requestId": "ef194e26-96bf-41a6-bc74-cd204cefcedd",
+        "suggestContinueAsNew": false,
+        "historySizeBytes": "1660"
+      }
+    },
+    {
+      "eventId": "14",
+      "eventTime": "2023-07-10T23:17:33.263135Z",
+      "eventType": "WorkflowTaskCompleted",
+      "version": "0",
+      "taskId": "1048627",
+      "workerMayIgnore": false,
+      "workflowTaskCompletedEventAttributes": {
+        "scheduledEventId": "12",
+        "startedEventId": "13",
+        "identity": "14627@Andrew-Fitz-Gibbons-MacBook-Pro.local@",
+        "binaryChecksum": "60b600c17c9acb697db7457cde670f4f",
+        "workerVersion": null,
+        "sdkMetadata": {
+          "coreUsedFlags": [],
+          "langUsedFlags": []
+        },
+        "meteringMetadata": {
+          "nonfirstLocalActivityExecutionAttempts": 0
+        }
+      }
+    },
+    {
+      "eventId": "15",
+      "eventTime": "2023-07-10T23:17:33.263160Z",
+      "eventType": "ActivityTaskScheduled",
+      "version": "0",
+      "taskId": "1048628",
+      "workerMayIgnore": false,
+      "activityTaskScheduledEventAttributes": {
+        "activityId": "2cc2dc94-de57-3e33-984d-dcdfcc876ea5",
+        "activityType": {
+          "name": "SendEmail"
+        },
+        "taskQueue": {
+          "name": "CustomerLoyaltyTaskQueue",
+          "kind": "Normal",
+          "normalName": ""
+        },
+        "header": {
+          "fields": {}
+        },
+        "input": {
+          "payloads": [
+            {
+              "metadata": {
+                "encoding": "anNvbi9wbGFpbg=="
+              },
+              "data": "IkNvbmdyYXR1bGF0aW9ucyEgWW91J3ZlIGJlZW4gcHJvbW90ZWQgdG8gJ1BsYXRpbnVtJyBzdGF0dXMhIg=="
+            }
+          ]
+        },
+        "scheduleToCloseTimeout": "0s",
+        "scheduleToStartTimeout": "0s",
+        "startToCloseTimeout": "10s",
+        "heartbeatTimeout": "0s",
+        "workflowTaskCompletedEventId": "14",
+        "retryPolicy": {
+          "initialInterval": "1s",
+          "backoffCoefficient": 2,
+          "maximumInterval": "60s",
+          "maximumAttempts": 0,
+          "nonRetryableErrorTypes": []
+        },
+        "useCompatibleVersion": false
+      }
+    },
+    {
+      "eventId": "16",
+      "eventTime": "2023-07-10T23:17:33.264222Z",
+      "eventType": "ActivityTaskStarted",
+      "version": "0",
+      "taskId": "1048634",
+      "workerMayIgnore": false,
+      "activityTaskStartedEventAttributes": {
+        "scheduledEventId": "15",
+        "identity": "14627@Andrew-Fitz-Gibbons-MacBook-Pro.local@",
+        "requestId": "3cffe521-c28d-45a9-a643-863de407c1d6",
+        "attempt": 1,
+        "lastFailure": null
+      }
+    },
+    {
+      "eventId": "17",
+      "eventTime": "2023-07-10T23:17:33.265660Z",
+      "eventType": "ActivityTaskCompleted",
+      "version": "0",
+      "taskId": "1048635",
+      "workerMayIgnore": false,
+      "activityTaskCompletedEventAttributes": {
+        "result": null,
+        "scheduledEventId": "15",
+        "startedEventId": "16",
+        "identity": "14627@Andrew-Fitz-Gibbons-MacBook-Pro.local@",
+        "workerVersion": null
+      }
+    },
+    {
+      "eventId": "18",
+      "eventTime": "2023-07-10T23:17:33.265663Z",
+      "eventType": "WorkflowTaskScheduled",
+      "version": "0",
+      "taskId": "1048636",
+      "workerMayIgnore": false,
+      "workflowTaskScheduledEventAttributes": {
+        "taskQueue": {
+          "name": "Andrew-Fitz-Gibbons-MacBook-Pro.local:8da5b6a0-ce91-4ed9-b653-f5336e8f09dc",
+          "kind": "Sticky",
+          "normalName": "CustomerLoyaltyTaskQueue"
+        },
+        "startToCloseTimeout": "10s",
+        "attempt": 1
+      }
+    },
+    {
+      "eventId": "19",
+      "eventTime": "2023-07-10T23:17:33.266394Z",
+      "eventType": "WorkflowTaskStarted",
+      "version": "0",
+      "taskId": "1048640",
+      "workerMayIgnore": false,
+      "workflowTaskStartedEventAttributes": {
+        "scheduledEventId": "18",
+        "identity": "14627@Andrew-Fitz-Gibbons-MacBook-Pro.local@",
+        "requestId": "2572defa-104a-4d53-9422-e14770528c61",
+        "suggestContinueAsNew": false,
+        "historySizeBytes": "2413"
+      }
+    },
+    {
+      "eventId": "20",
+      "eventTime": "2023-07-10T23:17:33.267642Z",
+      "eventType": "WorkflowTaskCompleted",
+      "version": "0",
+      "taskId": "1048644",
+      "workerMayIgnore": false,
+      "workflowTaskCompletedEventAttributes": {
+        "scheduledEventId": "18",
+        "startedEventId": "19",
+        "identity": "14627@Andrew-Fitz-Gibbons-MacBook-Pro.local@",
+        "binaryChecksum": "60b600c17c9acb697db7457cde670f4f",
+        "workerVersion": null,
+        "sdkMetadata": {
+          "coreUsedFlags": [],
+          "langUsedFlags": []
+        },
+        "meteringMetadata": {
+          "nonfirstLocalActivityExecutionAttempts": 0
+        }
+      }
+    },
+    {
+      "eventId": "21",
+      "eventTime": "2023-07-10T23:17:41.947762Z",
+      "eventType": "WorkflowExecutionSignaled",
+      "version": "0",
+      "taskId": "1048647",
+      "workerMayIgnore": false,
+      "workflowExecutionSignaledEventAttributes": {
+        "signalName": "cancelAccount",
+        "input": null,
+        "identity": "temporal-cli:fitz@Andrew-Fitz-Gibbons-MacBook-Pro.local",
+        "header": null,
+        "skipGenerateWorkflowTask": false
+      }
+    },
+    {
+      "eventId": "22",
+      "eventTime": "2023-07-10T23:17:41.947766Z",
+      "eventType": "WorkflowTaskScheduled",
+      "version": "0",
+      "taskId": "1048648",
+      "workerMayIgnore": false,
+      "workflowTaskScheduledEventAttributes": {
+        "taskQueue": {
+          "name": "Andrew-Fitz-Gibbons-MacBook-Pro.local:8da5b6a0-ce91-4ed9-b653-f5336e8f09dc",
+          "kind": "Sticky",
+          "normalName": "CustomerLoyaltyTaskQueue"
+        },
+        "startToCloseTimeout": "10s",
+        "attempt": 1
+      }
+    },
+    {
+      "eventId": "23",
+      "eventTime": "2023-07-10T23:17:41.948790Z",
+      "eventType": "WorkflowTaskStarted",
+      "version": "0",
+      "taskId": "1048652",
+      "workerMayIgnore": false,
+      "workflowTaskStartedEventAttributes": {
+        "scheduledEventId": "22",
+        "identity": "14627@Andrew-Fitz-Gibbons-MacBook-Pro.local@",
+        "requestId": "36c75feb-8a24-4f2f-a796-efb70c27f74c",
+        "suggestContinueAsNew": false,
+        "historySizeBytes": "2878"
+      }
+    },
+    {
+      "eventId": "24",
+      "eventTime": "2023-07-10T23:17:41.950498Z",
+      "eventType": "WorkflowTaskCompleted",
+      "version": "0",
+      "taskId": "1048656",
+      "workerMayIgnore": false,
+      "workflowTaskCompletedEventAttributes": {
+        "scheduledEventId": "22",
+        "startedEventId": "23",
+        "identity": "14627@Andrew-Fitz-Gibbons-MacBook-Pro.local@",
+        "binaryChecksum": "60b600c17c9acb697db7457cde670f4f",
+        "workerVersion": null,
+        "sdkMetadata": {
+          "coreUsedFlags": [],
+          "langUsedFlags": []
+        },
+        "meteringMetadata": {
+          "nonfirstLocalActivityExecutionAttempts": 0
+        }
+      }
+    },
+    {
+      "eventId": "25",
+      "eventTime": "2023-07-10T23:17:41.950522Z",
+      "eventType": "ActivityTaskScheduled",
+      "version": "0",
+      "taskId": "1048657",
+      "workerMayIgnore": false,
+      "activityTaskScheduledEventAttributes": {
+        "activityId": "539ca7da-e42e-3df0-bcc7-eabbc10ef765",
+        "activityType": {
+          "name": "SendEmail"
+        },
+        "taskQueue": {
+          "name": "CustomerLoyaltyTaskQueue",
+          "kind": "Normal",
+          "normalName": ""
+        },
+        "header": {
+          "fields": {}
+        },
+        "input": {
+          "payloads": [
+            {
+              "metadata": {
+                "encoding": "anNvbi9wbGFpbg=="
+              },
+              "data": "IlNvcnJ5IHRvIHNlZSB5b3UgZ28hIg=="
+            }
+          ]
+        },
+        "scheduleToCloseTimeout": "0s",
+        "scheduleToStartTimeout": "0s",
+        "startToCloseTimeout": "10s",
+        "heartbeatTimeout": "0s",
+        "workflowTaskCompletedEventId": "24",
+        "retryPolicy": {
+          "initialInterval": "1s",
+          "backoffCoefficient": 2,
+          "maximumInterval": "60s",
+          "maximumAttempts": 0,
+          "nonRetryableErrorTypes": []
+        },
+        "useCompatibleVersion": false
+      }
+    },
+    {
+      "eventId": "26",
+      "eventTime": "2023-07-10T23:17:41.951666Z",
+      "eventType": "ActivityTaskStarted",
+      "version": "0",
+      "taskId": "1048663",
+      "workerMayIgnore": false,
+      "activityTaskStartedEventAttributes": {
+        "scheduledEventId": "25",
+        "identity": "14627@Andrew-Fitz-Gibbons-MacBook-Pro.local@",
+        "requestId": "95f2664b-b532-4b65-bf5a-c727a2793a5c",
+        "attempt": 1,
+        "lastFailure": null
+      }
+    },
+    {
+      "eventId": "27",
+      "eventTime": "2023-07-10T23:17:41.953062Z",
+      "eventType": "ActivityTaskCompleted",
+      "version": "0",
+      "taskId": "1048664",
+      "workerMayIgnore": false,
+      "activityTaskCompletedEventAttributes": {
+        "result": null,
+        "scheduledEventId": "25",
+        "startedEventId": "26",
+        "identity": "14627@Andrew-Fitz-Gibbons-MacBook-Pro.local@",
+        "workerVersion": null
+      }
+    },
+    {
+      "eventId": "28",
+      "eventTime": "2023-07-10T23:17:41.953065Z",
+      "eventType": "WorkflowTaskScheduled",
+      "version": "0",
+      "taskId": "1048665",
+      "workerMayIgnore": false,
+      "workflowTaskScheduledEventAttributes": {
+        "taskQueue": {
+          "name": "Andrew-Fitz-Gibbons-MacBook-Pro.local:8da5b6a0-ce91-4ed9-b653-f5336e8f09dc",
+          "kind": "Sticky",
+          "normalName": "CustomerLoyaltyTaskQueue"
+        },
+        "startToCloseTimeout": "10s",
+        "attempt": 1
+      }
+    },
+    {
+      "eventId": "29",
+      "eventTime": "2023-07-10T23:17:41.953761Z",
+      "eventType": "WorkflowTaskStarted",
+      "version": "0",
+      "taskId": "1048669",
+      "workerMayIgnore": false,
+      "workflowTaskStartedEventAttributes": {
+        "scheduledEventId": "28",
+        "identity": "14627@Andrew-Fitz-Gibbons-MacBook-Pro.local@",
+        "requestId": "b219cc37-1fa8-44c4-a6d0-44cbe955321e",
+        "suggestContinueAsNew": false,
+        "historySizeBytes": "3598"
+      }
+    },
+    {
+      "eventId": "30",
+      "eventTime": "2023-07-10T23:17:41.955625Z",
+      "eventType": "WorkflowTaskCompleted",
+      "version": "0",
+      "taskId": "1048673",
+      "workerMayIgnore": false,
+      "workflowTaskCompletedEventAttributes": {
+        "scheduledEventId": "28",
+        "startedEventId": "29",
+        "identity": "14627@Andrew-Fitz-Gibbons-MacBook-Pro.local@",
+        "binaryChecksum": "60b600c17c9acb697db7457cde670f4f",
+        "workerVersion": null,
+        "sdkMetadata": {
+          "coreUsedFlags": [],
+          "langUsedFlags": []
+        },
+        "meteringMetadata": {
+          "nonfirstLocalActivityExecutionAttempts": 0
+        }
+      }
+    },
+    {
+      "eventId": "31",
+      "eventTime": "2023-07-10T23:17:41.955690Z",
+      "eventType": "WorkflowExecutionCompleted",
+      "version": "0",
+      "taskId": "1048674",
+      "workerMayIgnore": false,
+      "workflowExecutionCompletedEventAttributes": {
+        "result": null,
+        "workflowTaskCompletedEventId": "30",
+        "newExecutionRunId": ""
+      }
+    }
+  ]
+}

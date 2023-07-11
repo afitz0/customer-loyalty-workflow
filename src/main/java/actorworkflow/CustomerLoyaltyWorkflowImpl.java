@@ -134,6 +134,7 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
     @Override
     public void cancelAccount() {
         this.accountActive = false;
+        activities.sendEmail(EmailStrings.EMAIL_CANCEL_ACCOUNT);
     }
 
     @Override

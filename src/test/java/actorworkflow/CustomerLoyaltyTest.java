@@ -6,11 +6,14 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.testing.TestWorkflowRule;
+import io.temporal.testing.WorkflowReplayer;
 import org.junit.Rule;
 import org.junit.Test;
 
+import java.io.File;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Objects;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.*;
@@ -146,8 +149,7 @@ public class CustomerLoyaltyTest {
             // "start" the workflow, to make sure we have the current execution, but expect it to throw
             try {
                 WorkflowClient.start(child::customerLoyalty, guest);
-            } catch (WorkflowExecutionAlreadyStarted ignored) {
-            }
+            } catch (WorkflowExecutionAlreadyStarted ignored) {}
             child.cancelAccount();
         });
 
@@ -159,5 +161,13 @@ public class CustomerLoyaltyTest {
                 .sendEmail(EmailStrings.EMAIL_GUEST_MIN_STATUS.formatted(StatusTier.STATUS_TIERS.get(3).name()));
 
         testWorkflowRule.getTestEnvironment().shutdown();
+    }
+
+    @Test(expected = Test.None.class)
+    public void testSimpleReplay() throws Exception {
+        ClassLoader classLoader = getClass().getClassLoader();
+        File file = new File(Objects.requireNonNull(classLoader.getResource("simple_replay.json")).getFile());
+
+        WorkflowReplayer.replayWorkflowExecution(file, CustomerLoyaltyWorkflowImpl.class);
     }
 }
