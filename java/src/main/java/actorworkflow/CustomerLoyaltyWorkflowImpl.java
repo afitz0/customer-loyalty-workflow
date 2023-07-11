@@ -4,6 +4,7 @@ import io.temporal.activity.ActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.ParentClosePolicy;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
+import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.workflow.*;
 import org.slf4j.Logger;
 
@@ -27,7 +28,6 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
 
     @Override
     public String customerLoyalty(Customer customer) {
-        System.out.println("Customer passed in is: " + customer);
         this.customer = customer;
         WorkflowInfo info = Workflow.getInfo();
 
@@ -96,7 +96,7 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
             } catch (WorkflowExecutionAlreadyStarted e) {
                 logger.info("Guest customer workflow already started and is a direct child.");
                 alreadyStarted = true;
-            } catch (Exception e) {
+            } catch (ChildWorkflowFailure e) {
                 if (e.getCause() instanceof WorkflowExecutionAlreadyStarted) {
                     logger.info("Guest customer workflow already started.");
                 } else {

@@ -4,6 +4,7 @@ import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowStub;
 import io.temporal.testing.TestWorkflowRule;
 import io.temporal.testing.WorkflowReplayer;
 import org.junit.Rule;
@@ -58,6 +59,7 @@ public class CustomerLoyaltyTest {
         workflow.cancelAccount();
         testWorkflowRule.getTestEnvironment().sleep(Duration.ofSeconds(1));
 
+        WorkflowStub.fromTyped(workflow).getResult(String.class);
         testWorkflowRule.getTestEnvironment().shutdown();
     }
 
@@ -97,9 +99,28 @@ public class CustomerLoyaltyTest {
 
         testWorkflowRule
                 .getTestEnvironment()
-                .registerDelayedCallback(Duration.ofSeconds(1),
+                .registerDelayedCallback(Duration.ofSeconds(1), () -> {
+                    // "start" the workflow, to make sure we have the current execution, but expect it to throw
+                    try {
+                        WorkflowClient.start(child::customerLoyalty, guest);
+                    } catch (WorkflowExecutionAlreadyStarted ignored) {
+                    }
+                });
+
+        testWorkflowRule
+                .getTestEnvironment()
+                .registerDelayedCallback(Duration.ofSeconds(2),
                         () -> assertEquals(child.getStatus(), StatusTier.STATUS_TIERS.get(3)));
 
+        testWorkflowRule
+                .getTestEnvironment()
+                .registerDelayedCallback(Duration.ofSeconds(3), () -> {
+                    workflow.cancelAccount();
+                    child.cancelAccount();
+                });
+
+        WorkflowStub.fromTyped(workflow).getResult(String.class);
+        WorkflowStub.fromTyped(child).getResult(String.class);
         testWorkflowRule.getTestEnvironment().shutdown();
     }
 
@@ -163,6 +184,8 @@ public class CustomerLoyaltyTest {
         verify(activities, times(1))
                 .sendEmail(EmailStrings.EMAIL_GUEST_MIN_STATUS.formatted(StatusTier.STATUS_TIERS.get(3).name()));
 
+        WorkflowStub.fromTyped(workflow).getResult(String.class);
+        WorkflowStub.fromTyped(child).getResult(String.class);
         testWorkflowRule.getTestEnvironment().shutdown();
     }
 
