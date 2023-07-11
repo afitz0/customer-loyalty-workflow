@@ -91,7 +91,7 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
                 Async.procedure(child::customerLoyalty, guest);
 
                 // Wait for child to start
-                WorkflowExecution ce = childExecution.get();
+                childExecution.get();
             } catch (WorkflowExecutionAlreadyStarted e) {
                 logger.info("Guest customer workflow already started and is a direct child.");
                 alreadyStarted = true;
@@ -122,7 +122,6 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
 
     @Override
     public void ensureMinimumStatus(StatusTier status) {
-        WorkflowInfo info = Workflow.getInfo();
         logger.info("Ensuring that status is at minimum {}.", status.name());
         while (customer.status().minimumPoints() < status.minimumPoints()) {
             customer = customer.withStatus(StatusTier.next(customer.status()));

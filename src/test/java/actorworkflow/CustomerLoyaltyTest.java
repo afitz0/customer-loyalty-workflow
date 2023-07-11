@@ -1,6 +1,5 @@
 package actorworkflow;
 
-import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
@@ -24,7 +23,7 @@ import static org.mockito.Mockito.*;
 public class CustomerLoyaltyTest {
 
     @Rule
-    public TestWorkflowRule testWorkflowRule =
+    public final TestWorkflowRule testWorkflowRule =
             TestWorkflowRule.newBuilder()
                     .setWorkflowTypes(CustomerLoyaltyWorkflowImpl.class)
                     .setDoNotStart(true)
@@ -96,9 +95,10 @@ public class CustomerLoyaltyTest {
                                 .setWorkflowId(Shared.WORKFLOW_ID_FORMAT.formatted(guest.customerId()))
                                 .build());
 
-        testWorkflowRule.getTestEnvironment().registerDelayedCallback(Duration.ofSeconds(1), () -> {
-            assertEquals(child.getStatus(), StatusTier.STATUS_TIERS.get(3));
-        });
+        testWorkflowRule
+                .getTestEnvironment()
+                .registerDelayedCallback(Duration.ofSeconds(1),
+                        () -> assertEquals(child.getStatus(), StatusTier.STATUS_TIERS.get(3)));
 
         testWorkflowRule.getTestEnvironment().shutdown();
     }
@@ -123,19 +123,21 @@ public class CustomerLoyaltyTest {
                         .newWorkflowStub(CustomerLoyaltyWorkflow.class, workflowOptions);
 
         var customer = new Customer("host", "", 0, StatusTier.STATUS_TIERS.get(4), new ArrayList<>());
-        WorkflowExecution e = WorkflowClient.start(workflow::customerLoyalty, customer);
+        WorkflowClient.start(workflow::customerLoyalty, customer);
 
         int order = 0;
         var guest = new Customer("guest");
-        testWorkflowRule.getTestEnvironment().registerDelayedCallback(Duration.ofSeconds(order++), () -> {
-            workflow.inviteGuest(guest);
-        });
+        testWorkflowRule.getTestEnvironment()
+                .registerDelayedCallback(Duration.ofSeconds(order++),
+                        () -> workflow.inviteGuest(guest));
 
-        testWorkflowRule.getTestEnvironment().registerDelayedCallback(Duration.ofSeconds(order++), () -> {
-            workflow.inviteGuest(guest);
-        });
+        testWorkflowRule.getTestEnvironment()
+                .registerDelayedCallback(Duration.ofSeconds(order++),
+                        () -> workflow.inviteGuest(guest));
 
-        testWorkflowRule.getTestEnvironment().registerDelayedCallback(Duration.ofSeconds(order++), workflow::cancelAccount);
+        testWorkflowRule.getTestEnvironment()
+                .registerDelayedCallback(Duration.ofSeconds(order++),
+                        workflow::cancelAccount);
 
         CustomerLoyaltyWorkflow child = testWorkflowRule
                 .getWorkflowClient()
@@ -149,7 +151,8 @@ public class CustomerLoyaltyTest {
             // "start" the workflow, to make sure we have the current execution, but expect it to throw
             try {
                 WorkflowClient.start(child::customerLoyalty, guest);
-            } catch (WorkflowExecutionAlreadyStarted ignored) {}
+            } catch (WorkflowExecutionAlreadyStarted ignored) {
+            }
             child.cancelAccount();
         });
 
