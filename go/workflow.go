@@ -1,11 +1,11 @@
-package starter
+package loyalty
 
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	"go.temporal.io/api/enums/v1"
 	"time"
 
-	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"

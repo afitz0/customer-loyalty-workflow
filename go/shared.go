@@ -1,4 +1,4 @@
-package starter
+package loyalty
 
 import "github.com/afitz0/customer-loyalty-workflow/status"
 
