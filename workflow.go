@@ -12,7 +12,7 @@ import (
 
 func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err error) {
 	logger := workflow.GetLogger(ctx)
-	logger.Info("Loyalty workflow started", "CustomerInfo", customer)
+	logger.Info("Loyalty workflow started.", "CustomerInfo", customer)
 
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: 10 * time.Second,
@@ -28,7 +28,7 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 	activities := Activities{}
 	var errSignal error
 
-	logger.Info("Validating customer info")
+	logger.Info("Validating customer info.")
 	validateCustomerInfo(&customer)
 
 	if info.ContinuedExecutionRunID == "" {
@@ -36,7 +36,7 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 			fmt.Sprintf(EmailWelcome, StatusTiers[customer.StatusLevel].Name)).
 			Get(ctx, nil)
 		if err != nil {
-			logger.Error("Error running SendEmail activity", "Error", err)
+			logger.Error("Error running SendEmail activity.", "Error", err)
 			return err
 		}
 	}
@@ -47,7 +47,7 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 			var pointsToAdd int
 			c.Receive(ctx, &pointsToAdd)
 
-			logger.Info("Adding points to customer account", "PointsAdded", pointsToAdd)
+			logger.Info("Adding points to customer account.", "PointsAdded", pointsToAdd)
 			customer.LoyaltyPoints += pointsToAdd
 
 			promoted := false
@@ -63,7 +63,7 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 					fmt.Sprintf(EmailPromoted, StatusTiers[customer.StatusLevel].Name)).
 					Get(ctx, nil)
 				if err != nil {
-					logger.Error("Error running SendEmail activity", "Error", err)
+					logger.Error("Error running SendEmail activity.", "Error", err)
 					errSignal = err
 				}
 			}
@@ -90,14 +90,14 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 				previousTier := StatusTiers[max(customer.StatusLevel-1, 0)]
 
 				err, guestWorkflow := startGuestWorkflow(ctx, guest)
-				logger.Info("Results from starting guest", "error", err, "guest", guestWorkflow)
+				logger.Info("Results from starting guest.", "error", err, "guest", guestWorkflow)
 
 				if _, ok := err.(*serviceerror.WorkflowExecutionAlreadyStarted); ok {
 					emailToSend = EmailGuestInvited
 					err = guestWorkflow.SignalChildWorkflow(ctx, SignalEnsureMinimumStatus, previousTier).
 						Get(ctx, nil)
 					if _, ok := err.(*serviceerror.WorkflowExecutionAlreadyStarted); ok {
-						logger.Info("Failed to signal 'already started' guest account; child workflow probably closed.")
+						logger.Info("Failed to signal 'already started' guest account; child workflow likely closed.")
 						emailToSend = EmailGuestCanceled
 					} else if err != nil {
 						logger.Error("Could not signal guest/child workflow.")
@@ -116,7 +116,7 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 
 			err = workflow.ExecuteActivity(ctx, activities.SendEmail, emailToSend).Get(ctx, nil)
 			if err != nil {
-				logger.Error("Error running SendEmail activity", "Error", err)
+				logger.Error("Error running SendEmail activity.", "Error", err)
 				errSignal = err
 			}
 		})
@@ -137,7 +137,7 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 				emailBody := fmt.Sprintf(EmailPromoted, minStatus.Name)
 				err := workflow.ExecuteActivity(ctx, activities.SendEmail, emailBody).Get(ctx, nil)
 				if err != nil {
-					logger.Error("Error running SendEmail activity", "Error", err)
+					logger.Error("Error running SendEmail activity.", "Error", err)
 					errSignal = err
 				}
 			}
@@ -152,32 +152,31 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 			customer.AccountActive = false
 			err = workflow.ExecuteActivity(ctx, activities.SendEmail, EmailCancelAccount).Get(ctx, nil)
 			if err != nil {
-				logger.Error("Error running SendEmail activity", "Error", err)
+				logger.Error("Error running SendEmail activity.", "Error", err)
 				errSignal = err
 				return
 			}
 
-			logger.Info("Canceled account", "CustomerID", customer.CustomerId)
+			logger.Info("Canceled account.", "CustomerID", customer.CustomerId)
 		})
 
 	// query handler for status level
 	// Set up the Query handler for the response
 	err = workflow.SetQueryHandler(ctx, QueryGetStatus,
 		func() (GetStatusResponse, error) {
-			logger.Info("Got status query", "Customer", customer)
 			status := GetStatusResponse{
 				StatusLevel:   customer.StatusLevel,
 				Tier:          StatusTiers[customer.StatusLevel],
 				Points:        customer.LoyaltyPoints,
 				AccountActive: customer.AccountActive,
 			}
+			logger.Info("Got status query.", "Customer", customer, "Response", status)
 
 			return status, nil
 		})
 
 	err = workflow.SetQueryHandler(ctx, QueryGetGuests,
 		func() ([]string, error) {
-			logger.Info("Sending back guest list", "Guests", customer.Guests)
 			guestIds := make([]string, len(customer.Guests))
 
 			i := 0
@@ -185,6 +184,8 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 				guestIds[i] = k
 				i++
 			}
+
+			logger.Info("Got guest list query.", "Guests", guestIds)
 			return guestIds, nil
 		})
 

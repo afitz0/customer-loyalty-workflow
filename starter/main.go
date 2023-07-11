@@ -19,7 +19,7 @@ func main() {
 		Logger: logger,
 	})
 	if err != nil {
-		log.Fatalln("Unable to create client", err)
+		log.Fatalln("Unable to create client.", err)
 	}
 	defer c.Close()
 
@@ -28,7 +28,7 @@ func main() {
 		LoyaltyPoints: 0,
 		StatusLevel:   0,
 		Name:          "Customer",
-		Guests:        []string{},
+		Guests:        map[string]struct{}{},
 		AccountActive: true,
 	}
 	workflowOptions := client.StartWorkflowOptions{
@@ -38,8 +38,8 @@ func main() {
 
 	we, err := c.ExecuteWorkflow(context.Background(), workflowOptions, starter.CustomerLoyaltyWorkflow, customer)
 	if err != nil {
-		log.Fatalln("Unable to execute workflow", err)
+		log.Fatalln("Unable to execute workflow.", err)
 	}
 
-	log.Println("Started workflow", "WorkflowID", we.GetID(), "RunID", we.GetRunID())
+	log.Println("Started workflow.", "WorkflowID", we.GetID(), "RunID", we.GetRunID())
 }
