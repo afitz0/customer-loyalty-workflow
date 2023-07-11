@@ -42,14 +42,19 @@ class CustomerLoyaltyWorkflow:
 
         if self.customer.account_active:
             logging.info(
-                "Account %s still active, but event history threshold reached; continuing-as-new." % self.customer.id)
+                "Account %s still active, but event history threshold reached; continuing-as-new." % self.customer.customerId)
             workflow.continue_as_new(self.customer)
 
-        return "Loyalty workflow completed. Customer: %s" % self.customer.id
+        return "Loyalty workflow completed. Customer: %s" % self.customer.customerId
 
     @workflow.signal(name=SIGNAL_CANCEL_ACCOUNT)
     async def cancel_account(self) -> None:
         self.customer.account_active = False
+        await workflow.execute_activity(
+                send_email,
+                email_strings.EMAIL_CANCEL_ACCOUNT,
+                start_to_close_timeout=timedelta(seconds=5),
+            )
 
     @workflow.signal(name=SIGNAL_ADD_POINTS)
     async def add_points(self, points_to_add: int) -> None:
@@ -81,7 +86,7 @@ class CustomerLoyaltyWorkflow:
 
         self.customer.guests.add(guest_id)
 
-        guest = Customer(id=guest_id)
+        guest = Customer(customerId=guest_id)
         child_workflow_id = CUSTOMER_WORKFLOW_ID_FORMAT.format(guest_id)
         try:
             child_handle = await workflow.start_child_workflow(
@@ -127,4 +132,4 @@ class CustomerLoyaltyWorkflow:
 
     @workflow.query(name=QUERY_GET_GUESTS)
     def get_guests(self) -> list[str]:
-        return list(map(lambda c: c.id, self.customer.guests))
+        return list(map(lambda c: c.customerId, self.customer.guests))

@@ -19,7 +19,7 @@ QUERY_GET_GUESTS = "getGuests"
 
 @dataclass
 class Customer:
-    id: str = field(metadata=config(field_name="customerId"))
+    customerId: str = field(metadata=config(field_name="customerId"))
     name: Optional[str] = ""
     points: Optional[int] = 0
     guests: Optional[set[str]] = field(default_factory=set)

@@ -10,12 +10,12 @@ async def main():
 
     client = await Client.connect("localhost:7233")
 
-    customer = Customer(name="Customer", id="123", status=Status(4))
+    customer = Customer(name="Customer", customerId="123", status=Status(4))
 
     await client.start_workflow(
         CustomerLoyaltyWorkflow.run,
         customer,
-        id=CUSTOMER_WORKFLOW_ID_FORMAT.format(customer.id),
+        id=CUSTOMER_WORKFLOW_ID_FORMAT.format(customer.customerId),
         task_queue=TASK_QUEUE,
     )
 
