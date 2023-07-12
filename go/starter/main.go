@@ -25,7 +25,7 @@ func main() {
 	defer c.Close()
 
 	customer := wf.CustomerInfo{
-		CustomerId:    "123",
+		CustomerID:    "123",
 		LoyaltyPoints: 0,
 		StatusLevel:   0,
 		Name:          "Customer",
@@ -33,7 +33,7 @@ func main() {
 		AccountActive: true,
 	}
 	workflowOptions := client.StartWorkflowOptions{
-		ID:        fmt.Sprintf(common.CustomerWorkflowIdFormat, customer.CustomerId),
+		ID:        fmt.Sprintf(common.CustomerWorkflowIDFormat, customer.CustomerID),
 		TaskQueue: common.TaskQueue,
 	}
 

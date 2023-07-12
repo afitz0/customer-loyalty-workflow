@@ -7,7 +7,7 @@ import (
 
 type Activities struct{}
 
-func (a *Activities) SendEmail(ctx context.Context, body string) (err error) {
+func (*Activities) SendEmail(ctx context.Context, body string) error {
 	logger := activity.GetLogger(ctx)
 	logger.Info("Sending email.", "Contents", body)
 	return nil
