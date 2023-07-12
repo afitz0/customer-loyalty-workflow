@@ -9,9 +9,9 @@ import (
 
 	"go.uber.org/zap/zapcore"
 
-	wf "github.com/afitz0/customer-loyalty-workflow"
-	"github.com/afitz0/customer-loyalty-workflow/common"
-	"github.com/afitz0/customer-loyalty-workflow/zapadapter"
+	wf "github.com/afitz0/customer-loyalty-workflow/go"
+	"github.com/afitz0/customer-loyalty-workflow/go/common"
+	"github.com/afitz0/customer-loyalty-workflow/go/zapadapter"
 )
 
 func main() {

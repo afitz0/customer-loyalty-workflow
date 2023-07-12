@@ -1,4 +1,4 @@
-module github.com/afitz0/customer-loyalty-workflow
+module github.com/afitz0/customer-loyalty-workflow/go
 
 go 1.20
 

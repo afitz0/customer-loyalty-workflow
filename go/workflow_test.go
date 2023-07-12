@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/afitz0/customer-loyalty-workflow/common"
-	"github.com/afitz0/customer-loyalty-workflow/status"
-	"github.com/afitz0/customer-loyalty-workflow/zapadapter"
+	"github.com/afitz0/customer-loyalty-workflow/go/common"
+	"github.com/afitz0/customer-loyalty-workflow/go/status"
+	"github.com/afitz0/customer-loyalty-workflow/go/zapadapter"
 )
 
 type UnitTestSuite struct {

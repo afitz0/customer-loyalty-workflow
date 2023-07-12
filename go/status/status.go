@@ -1,6 +1,6 @@
 package status
 
-import "github.com/afitz0/customer-loyalty-workflow/common"
+import "github.com/afitz0/customer-loyalty-workflow/go/common"
 
 var Levels = []Tier{
 	{

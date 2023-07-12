@@ -9,8 +9,8 @@ import (
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 
-	"github.com/afitz0/customer-loyalty-workflow/common"
-	"github.com/afitz0/customer-loyalty-workflow/status"
+	"github.com/afitz0/customer-loyalty-workflow/go/common"
+	"github.com/afitz0/customer-loyalty-workflow/go/status"
 )
 
 func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err error) {
