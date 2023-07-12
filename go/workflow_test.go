@@ -36,7 +36,7 @@ func (s *UnitTestSuite) Test_Workflow() {
 	env.RegisterActivity(&Activities{})
 
 	customer := CustomerInfo{
-		CustomerId:    "123",
+		CustomerID:    "123",
 		LoyaltyPoints: 0,
 		StatusLevel:   0,
 		Name:          "Customer",
@@ -72,7 +72,7 @@ func (s *UnitTestSuite) Test_AddPoints() {
 	}, time.Second*2)
 
 	customer := CustomerInfo{
-		CustomerId:    "123",
+		CustomerID:    "123",
 		LoyaltyPoints: 0,
 		StatusLevel:   0,
 		Name:          "Customer",
@@ -103,7 +103,7 @@ func (s *UnitTestSuite) Test_AddPointsForSinglePromo() {
 	}, time.Second*2)
 
 	customer := CustomerInfo{
-		CustomerId:    "123",
+		CustomerID:    "123",
 		LoyaltyPoints: 0,
 		StatusLevel:   0,
 		Name:          "Customer",
@@ -137,7 +137,7 @@ func (s *UnitTestSuite) Test_AddPointsForMultiPromo() {
 	}, time.Second*2)
 
 	customer := CustomerInfo{
-		CustomerId:    "123",
+		CustomerID:    "123",
 		LoyaltyPoints: 0,
 		StatusLevel:   0,
 		Name:          "Customer",
@@ -168,7 +168,7 @@ func (s *UnitTestSuite) Test_CancelAccount() {
 	}, time.Second*2)
 
 	customer := CustomerInfo{
-		CustomerId:    "123",
+		CustomerID:    "123",
 		AccountActive: true,
 	}
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
@@ -181,14 +181,14 @@ func (s *UnitTestSuite) Test_InviteGuest() {
 
 	// first, invite the guest. This should result in another workflow being started
 	env.RegisterDelayedCallback(func() {
-		guestId := "guest"
-		env.SignalWorkflow(common.SignalInviteGuest, guestId)
+		guestID := "guest"
+		env.SignalWorkflow(common.SignalInviteGuest, guestID)
 	}, 0)
 
 	// then, see if we can query it
 	env.RegisterDelayedCallback(func() {
 		result, err := env.QueryWorkflowByID(
-			fmt.Sprintf(common.CustomerWorkflowIdFormat, "guest"),
+			fmt.Sprintf(common.CustomerWorkflowIDFormat, "guest"),
 			common.QueryGetStatus)
 		s.NoError(err)
 		var state GetStatusResponse
@@ -201,13 +201,13 @@ func (s *UnitTestSuite) Test_InviteGuest() {
 	env.RegisterDelayedCallback(func() {
 		env.SignalWorkflow(common.SignalCancelAccount, nil)
 		err := env.SignalWorkflowByID(
-			fmt.Sprintf(common.CustomerWorkflowIdFormat, "guest"),
+			fmt.Sprintf(common.CustomerWorkflowIDFormat, "guest"),
 			common.SignalCancelAccount, nil)
 		s.NoError(err)
 	}, time.Second*2)
 
 	customer := CustomerInfo{
-		CustomerId:    "123",
+		CustomerID:    "123",
 		LoyaltyPoints: 0,
 		StatusLevel:   1,
 		Name:          "Customer",
@@ -220,11 +220,11 @@ func (s *UnitTestSuite) Test_QueryGuests() {
 	env := s.NewTestWorkflowEnvironment()
 	env.RegisterActivity(&Activities{})
 
-	guestId := "guest"
+	guestID := "guest"
 
 	// first, invite the guest. This should result in this guest's ID being added to the original customer
 	env.RegisterDelayedCallback(func() {
-		env.SignalWorkflow(common.SignalInviteGuest, guestId)
+		env.SignalWorkflow(common.SignalInviteGuest, guestID)
 	}, 0)
 
 	// Query the original customer's guest list
@@ -235,20 +235,20 @@ func (s *UnitTestSuite) Test_QueryGuests() {
 		err = result.Get(&guests)
 		s.NoError(err)
 		s.Equal(1, len(guests))
-		s.Equal(guestId, guests[0])
+		s.Equal(guestID, guests[0])
 	}, time.Second*1)
 
 	// cancel workflows to not timeout
 	env.RegisterDelayedCallback(func() {
 		env.SignalWorkflow(common.SignalCancelAccount, nil)
 		err := env.SignalWorkflowByID(
-			fmt.Sprintf(common.CustomerWorkflowIdFormat, "guest"),
+			fmt.Sprintf(common.CustomerWorkflowIDFormat, "guest"),
 			common.SignalCancelAccount, nil)
 		s.NoError(err)
 	}, time.Second*2)
 
 	customer := CustomerInfo{
-		CustomerId:    "123",
+		CustomerID:    "123",
 		LoyaltyPoints: 0,
 		StatusLevel:   1,
 		Name:          "Customer",
@@ -267,19 +267,19 @@ func (s *UnitTestSuite) Test_InviteGuestPreviouslyCanceled() {
 		})
 
 	order := time.Second
-	guestId := "guest"
-	guestWfId := fmt.Sprintf(common.CustomerWorkflowIdFormat, guestId)
+	guestID := "guest"
+	guestWfID := fmt.Sprintf(common.CustomerWorkflowIDFormat, guestID)
 
 	// first, invite the guest. This should result in another workflow being started
 	env.RegisterDelayedCallback(func() {
-		env.SignalWorkflow(common.SignalInviteGuest, guestId)
+		env.SignalWorkflow(common.SignalInviteGuest, guestID)
 	}, order)
 	order += time.Second
 
 	// immediately cancel the guest account. this should keep it queryable, but sets AccountActive -> false
 	env.RegisterDelayedCallback(func() {
 		err := env.SignalWorkflowByID(
-			guestWfId,
+			guestWfID,
 			common.SignalCancelAccount, nil)
 		s.NoError(err)
 	}, order)
@@ -287,7 +287,7 @@ func (s *UnitTestSuite) Test_InviteGuestPreviouslyCanceled() {
 
 	// then, try to invite them again. the "guest has already canceled" email should be sent
 	env.RegisterDelayedCallback(func() {
-		env.SignalWorkflow(common.SignalInviteGuest, guestId)
+		env.SignalWorkflow(common.SignalInviteGuest, guestID)
 	}, order)
 	order += time.Second
 
@@ -298,7 +298,7 @@ func (s *UnitTestSuite) Test_InviteGuestPreviouslyCanceled() {
 	order += time.Second
 
 	customer := CustomerInfo{
-		CustomerId:    "123",
+		CustomerID:    "123",
 		LoyaltyPoints: 0,
 		StatusLevel:   2,
 		Name:          "Customer",

@@ -104,7 +104,7 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 
 func startGuestWorkflow(ctx workflow.Context, guest CustomerInfo) (err error, child workflow.ChildWorkflowFuture) {
 	childWorkflowOptions := workflow.ChildWorkflowOptions{
-		WorkflowID:            fmt.Sprintf(common.CustomerWorkflowIdFormat, guest.CustomerId),
+		WorkflowID:            fmt.Sprintf(common.CustomerWorkflowIDFormat, guest.CustomerID),
 		ParentClosePolicy:     enums.PARENT_CLOSE_POLICY_ABANDON,
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 	}
@@ -123,7 +123,7 @@ func validateCustomerInfo(customer *CustomerInfo) {
 	}
 }
 
-func signalAddPoints(ctx workflow.Context, c workflow.ReceiveChannel, customer *CustomerInfo) (err error) {
+func signalAddPoints(ctx workflow.Context, c workflow.ReceiveChannel, customer *CustomerInfo) error {
 	logger := workflow.GetLogger(ctx)
 	activities := Activities{}
 
@@ -136,14 +136,14 @@ func signalAddPoints(ctx workflow.Context, c workflow.ReceiveChannel, customer *
 	statusChange := customer.Status.Update(customer.LoyaltyPoints)
 
 	if statusChange > 0 {
-		err = workflow.ExecuteActivity(ctx, activities.SendEmail,
+		err := workflow.ExecuteActivity(ctx, activities.SendEmail,
 			fmt.Sprintf(common.EmailPromoted, customer.Status.Name())).
 			Get(ctx, nil)
 		if err != nil {
 			return errors.Wrap(err, "Error running SendEmail activity for status promotion.")
 		}
 	} else if statusChange < 0 {
-		err = workflow.ExecuteActivity(ctx, activities.SendEmail,
+		err := workflow.ExecuteActivity(ctx, activities.SendEmail,
 			fmt.Sprintf(common.EmailDemoted, customer.Status.Name())).
 			Get(ctx, nil)
 		if err != nil {
@@ -154,25 +154,25 @@ func signalAddPoints(ctx workflow.Context, c workflow.ReceiveChannel, customer *
 	return nil
 }
 
-func signalInviteGuest(ctx workflow.Context, c workflow.ReceiveChannel, customer *CustomerInfo) (err error) {
+func signalInviteGuest(ctx workflow.Context, c workflow.ReceiveChannel, customer *CustomerInfo) error {
 	logger := workflow.GetLogger(ctx)
 	activities := Activities{}
 
 	var emailToSend string
 
 	if len(customer.Guests) < customer.Status.NumGuestsAllowed() {
-		var guestId string
-		c.Receive(ctx, &guestId)
+		var guestID string
+		c.Receive(ctx, &guestID)
 
 		logger.Info("Customer is allowed to invite guests. Attempting to invite.",
-			"GuestId", guestId)
+			"GuestID", guestID)
 
 		guest := CustomerInfo{
-			CustomerId:    guestId,
+			CustomerID:    guestID,
 			AccountActive: true,
 		}
 
-		customer.Guests[guestId] = struct{}{}
+		customer.Guests[guestID] = struct{}{}
 
 		err, guestWorkflow := startGuestWorkflow(ctx, guest)
 		logger.Info("Results from starting guest.", "error", err, "guest", guestWorkflow)
@@ -186,17 +186,17 @@ func signalInviteGuest(ctx workflow.Context, c workflow.ReceiveChannel, customer
 				logger.Info("Failed to signal 'already started' guest account; child workflow likely closed.")
 				emailToSend = common.EmailGuestCanceled
 			} else if err != nil {
-				return errors.Wrapf(err, "Could not signal guest/child workflow for guest Id '%v'.", guestId)
+				return errors.Wrapf(err, "Could not signal guest/child workflow for guest ID '%v'.", guestID)
 			}
 		} else if err != nil {
-			return errors.Wrapf(err, "Could not start guest/child workflow for guest Id '%v'.", guestId)
+			return errors.Wrapf(err, "Could not start guest/child workflow for guest ID '%v'.", guestID)
 		}
 	} else {
 		logger.Info("Customer does not have sufficient status to invite more guests.")
 		emailToSend = common.EmailInsufficientPoints
 	}
 
-	err = workflow.ExecuteActivity(ctx, activities.SendEmail, emailToSend).Get(ctx, nil)
+	err := workflow.ExecuteActivity(ctx, activities.SendEmail, emailToSend).Get(ctx, nil)
 	if err != nil {
 		return errors.Wrap(err, "Error running SendEmail activity.")
 	}
@@ -204,7 +204,7 @@ func signalInviteGuest(ctx workflow.Context, c workflow.ReceiveChannel, customer
 	return nil
 }
 
-func signalEnsureMinimumStatus(ctx workflow.Context, c workflow.ReceiveChannel, customer *CustomerInfo) (err error) {
+func signalEnsureMinimumStatus(ctx workflow.Context, c workflow.ReceiveChannel, customer *CustomerInfo) error {
 	logger := workflow.GetLogger(ctx)
 	activities := Activities{}
 
@@ -225,7 +225,7 @@ func signalEnsureMinimumStatus(ctx workflow.Context, c workflow.ReceiveChannel, 
 	return nil
 }
 
-func signalCancelAccount(ctx workflow.Context, c workflow.ReceiveChannel, customer *CustomerInfo) (err error) {
+func signalCancelAccount(ctx workflow.Context, c workflow.ReceiveChannel, customer *CustomerInfo) error {
 	logger := workflow.GetLogger(ctx)
 	activities := Activities{}
 
@@ -233,13 +233,13 @@ func signalCancelAccount(ctx workflow.Context, c workflow.ReceiveChannel, custom
 	c.Receive(ctx, nil)
 
 	customer.AccountActive = false
-	err = workflow.ExecuteActivity(ctx, activities.SendEmail, common.EmailCancelAccount).Get(ctx, nil)
+	err := workflow.ExecuteActivity(ctx, activities.SendEmail, common.EmailCancelAccount).Get(ctx, nil)
 	if err != nil {
 		logger.Error("Error running SendEmail activity.", "Error", err)
 		return err
 	}
 
-	logger.Info("Canceled account.", "CustomerID", customer.CustomerId)
+	logger.Info("Canceled account.", "CustomerID", customer.CustomerID)
 	return nil
 }
 
@@ -258,14 +258,14 @@ func queryGetStatus(ctx workflow.Context, customer CustomerInfo) (GetStatusRespo
 
 func queryGetGuests(ctx workflow.Context, customer CustomerInfo) ([]string, error) {
 	logger := workflow.GetLogger(ctx)
-	guestIds := make([]string, len(customer.Guests))
+	guestIDs := make([]string, len(customer.Guests))
 
 	i := 0
 	for k := range customer.Guests {
-		guestIds[i] = k
+		guestIDs[i] = k
 		i++
 	}
 
-	logger.Info("Got guest list query.", "Guests", guestIds)
-	return guestIds, nil
+	logger.Info("Got guest list query.", "Guests", guestIDs)
+	return guestIDs, nil
 }

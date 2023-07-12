@@ -2,7 +2,7 @@ package common
 
 const (
 	TaskQueue                = "CustomerLoyaltyTaskQueue"
-	CustomerWorkflowIdFormat = "customer-%v"
+	CustomerWorkflowIDFormat = "customer-%v"
 	EventsThreshold          = 10000
 
 	SignalCancelAccount       = "cancelAccount"

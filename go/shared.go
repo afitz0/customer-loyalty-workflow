@@ -4,7 +4,7 @@ import "github.com/afitz0/customer-loyalty-workflow/status"
 
 type (
 	CustomerInfo struct {
-		CustomerId    string
+		CustomerID    string
 		LoyaltyPoints int
 		StatusLevel   int
 		Status        status.Status
