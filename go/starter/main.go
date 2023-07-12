@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"go.temporal.io/sdk/client"
@@ -10,9 +9,10 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	wf "github.com/afitz0/customer-loyalty-workflow/go"
-	"github.com/afitz0/customer-loyalty-workflow/go/common"
 	"github.com/afitz0/customer-loyalty-workflow/go/zapadapter"
 )
+
+const TaskQueue = "CustomerLoyaltyTaskQueue"
 
 func main() {
 	logger := zapadapter.NewZapAdapter(zapadapter.NewZapLogger(zapcore.DebugLevel))
@@ -26,15 +26,12 @@ func main() {
 
 	customer := wf.CustomerInfo{
 		CustomerID:    "123",
-		LoyaltyPoints: 0,
-		StatusLevel:   0,
 		Name:          "Customer",
-		Guests:        map[string]struct{}{},
 		AccountActive: true,
 	}
 	workflowOptions := client.StartWorkflowOptions{
-		ID:        fmt.Sprintf(common.CustomerWorkflowIDFormat, customer.CustomerID),
-		TaskQueue: common.TaskQueue,
+		ID:        wf.CustomerWorkflowID(customer.CustomerID),
+		TaskQueue: TaskQueue,
 	}
 
 	we, err := c.ExecuteWorkflow(context.Background(), workflowOptions, wf.CustomerLoyaltyWorkflow, customer)

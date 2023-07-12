@@ -2,7 +2,6 @@ package loyalty
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -14,7 +13,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/afitz0/customer-loyalty-workflow/go/common"
 	"github.com/afitz0/customer-loyalty-workflow/go/status"
 	"github.com/afitz0/customer-loyalty-workflow/go/zapadapter"
 )
@@ -43,7 +41,7 @@ func (s *UnitTestSuite) Test_Workflow() {
 		AccountActive: true,
 	}
 	env.RegisterDelayedCallback(func() {
-		env.SignalWorkflow(common.SignalCancelAccount, nil)
+		env.SignalWorkflow(SignalCancelAccount, nil)
 	}, 0)
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
 
@@ -56,10 +54,10 @@ func (s *UnitTestSuite) Test_AddPoints() {
 	env.RegisterActivity(&Activities{})
 
 	env.RegisterDelayedCallback(func() {
-		env.SignalWorkflow(common.SignalAddPoints, 100)
+		env.SignalWorkflow(SignalAddPoints, 100)
 	}, 0)
 	env.RegisterDelayedCallback(func() {
-		result, err := env.QueryWorkflow(common.QueryGetStatus)
+		result, err := env.QueryWorkflow(QueryGetStatus)
 		s.NoError(err)
 
 		var state GetStatusResponse
@@ -68,7 +66,7 @@ func (s *UnitTestSuite) Test_AddPoints() {
 		s.Equal(100, state.Points)
 	}, time.Second*1)
 	env.RegisterDelayedCallback(func() {
-		env.SignalWorkflow(common.SignalCancelAccount, nil)
+		env.SignalWorkflow(SignalCancelAccount, nil)
 	}, time.Second*2)
 
 	customer := CustomerInfo{
@@ -86,10 +84,10 @@ func (s *UnitTestSuite) Test_AddPointsForSinglePromo() {
 	env.RegisterActivity(&Activities{})
 
 	env.RegisterDelayedCallback(func() {
-		env.SignalWorkflow(common.SignalAddPoints, status.Levels[1].MinimumPoints)
+		env.SignalWorkflow(SignalAddPoints, status.Levels[1].MinimumPoints)
 	}, 0)
 	env.RegisterDelayedCallback(func() {
-		result, err := env.QueryWorkflow(common.QueryGetStatus)
+		result, err := env.QueryWorkflow(QueryGetStatus)
 		s.NoError(err)
 
 		var state GetStatusResponse
@@ -99,7 +97,7 @@ func (s *UnitTestSuite) Test_AddPointsForSinglePromo() {
 		s.Equal(status.Levels[1], state.Tier)
 	}, time.Second*1)
 	env.RegisterDelayedCallback(func() {
-		env.SignalWorkflow(common.SignalCancelAccount, nil)
+		env.SignalWorkflow(SignalCancelAccount, nil)
 	}, time.Second*2)
 
 	customer := CustomerInfo{
@@ -120,10 +118,10 @@ func (s *UnitTestSuite) Test_AddPointsForMultiPromo() {
 	targetTier := status.Levels[targetLevel]
 
 	env.RegisterDelayedCallback(func() {
-		env.SignalWorkflow(common.SignalAddPoints, targetTier.MinimumPoints)
+		env.SignalWorkflow(SignalAddPoints, targetTier.MinimumPoints)
 	}, 0)
 	env.RegisterDelayedCallback(func() {
-		result, err := env.QueryWorkflow(common.QueryGetStatus)
+		result, err := env.QueryWorkflow(QueryGetStatus)
 		s.NoError(err)
 
 		var state GetStatusResponse
@@ -133,7 +131,7 @@ func (s *UnitTestSuite) Test_AddPointsForMultiPromo() {
 		s.Equal(targetTier, state.Tier)
 	}, time.Second*1)
 	env.RegisterDelayedCallback(func() {
-		env.SignalWorkflow(common.SignalCancelAccount, nil)
+		env.SignalWorkflow(SignalCancelAccount, nil)
 	}, time.Second*2)
 
 	customer := CustomerInfo{
@@ -154,12 +152,12 @@ func (s *UnitTestSuite) Test_CancelAccount() {
 
 	// cancel account
 	env.RegisterDelayedCallback(func() {
-		env.SignalWorkflow(common.SignalCancelAccount, nil)
+		env.SignalWorkflow(SignalCancelAccount, nil)
 	}, time.Second*1)
 
 	// check status
 	env.RegisterDelayedCallback(func() {
-		result, err := env.QueryWorkflow(common.QueryGetStatus)
+		result, err := env.QueryWorkflow(QueryGetStatus)
 		s.NoError(err)
 		var statusResponse GetStatusResponse
 		err = result.Get(&statusResponse)
@@ -172,7 +170,7 @@ func (s *UnitTestSuite) Test_CancelAccount() {
 		AccountActive: true,
 	}
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
-	env.AssertCalled(s.T(), "SendEmail", mock.Anything, common.EmailCancelAccount)
+	env.AssertCalled(s.T(), "SendEmail", mock.Anything, EmailCancelAccount)
 }
 
 func (s *UnitTestSuite) Test_InviteGuest() {
@@ -182,14 +180,14 @@ func (s *UnitTestSuite) Test_InviteGuest() {
 	// first, invite the guest. This should result in another workflow being started
 	env.RegisterDelayedCallback(func() {
 		guestID := "guest"
-		env.SignalWorkflow(common.SignalInviteGuest, guestID)
+		env.SignalWorkflow(SignalInviteGuest, guestID)
 	}, 0)
 
 	// then, see if we can query it
 	env.RegisterDelayedCallback(func() {
 		result, err := env.QueryWorkflowByID(
-			fmt.Sprintf(common.CustomerWorkflowIDFormat, "guest"),
-			common.QueryGetStatus)
+			CustomerWorkflowID("guest"),
+			QueryGetStatus)
 		s.NoError(err)
 		var state GetStatusResponse
 		err = result.Get(&state)
@@ -199,10 +197,10 @@ func (s *UnitTestSuite) Test_InviteGuest() {
 
 	// cancel workflows to not timeout
 	env.RegisterDelayedCallback(func() {
-		env.SignalWorkflow(common.SignalCancelAccount, nil)
+		env.SignalWorkflow(SignalCancelAccount, nil)
 		err := env.SignalWorkflowByID(
-			fmt.Sprintf(common.CustomerWorkflowIDFormat, "guest"),
-			common.SignalCancelAccount, nil)
+			CustomerWorkflowID("guest"),
+			SignalCancelAccount, nil)
 		s.NoError(err)
 	}, time.Second*2)
 
@@ -224,12 +222,12 @@ func (s *UnitTestSuite) Test_QueryGuests() {
 
 	// first, invite the guest. This should result in this guest's ID being added to the original customer
 	env.RegisterDelayedCallback(func() {
-		env.SignalWorkflow(common.SignalInviteGuest, guestID)
+		env.SignalWorkflow(SignalInviteGuest, guestID)
 	}, 0)
 
 	// Query the original customer's guest list
 	env.RegisterDelayedCallback(func() {
-		result, err := env.QueryWorkflow(common.QueryGetGuests)
+		result, err := env.QueryWorkflow(QueryGetGuests)
 		s.NoError(err)
 		var guests []string
 		err = result.Get(&guests)
@@ -240,10 +238,10 @@ func (s *UnitTestSuite) Test_QueryGuests() {
 
 	// cancel workflows to not timeout
 	env.RegisterDelayedCallback(func() {
-		env.SignalWorkflow(common.SignalCancelAccount, nil)
+		env.SignalWorkflow(SignalCancelAccount, nil)
 		err := env.SignalWorkflowByID(
-			fmt.Sprintf(common.CustomerWorkflowIDFormat, "guest"),
-			common.SignalCancelAccount, nil)
+			CustomerWorkflowID("guest"),
+			SignalCancelAccount, nil)
 		s.NoError(err)
 	}, time.Second*2)
 
@@ -268,11 +266,11 @@ func (s *UnitTestSuite) Test_InviteGuestPreviouslyCanceled() {
 
 	order := time.Second
 	guestID := "guest"
-	guestWfID := fmt.Sprintf(common.CustomerWorkflowIDFormat, guestID)
+	guestWfID := CustomerWorkflowID(guestID)
 
 	// first, invite the guest. This should result in another workflow being started
 	env.RegisterDelayedCallback(func() {
-		env.SignalWorkflow(common.SignalInviteGuest, guestID)
+		env.SignalWorkflow(SignalInviteGuest, guestID)
 	}, order)
 	order += time.Second
 
@@ -280,20 +278,20 @@ func (s *UnitTestSuite) Test_InviteGuestPreviouslyCanceled() {
 	env.RegisterDelayedCallback(func() {
 		err := env.SignalWorkflowByID(
 			guestWfID,
-			common.SignalCancelAccount, nil)
+			SignalCancelAccount, nil)
 		s.NoError(err)
 	}, order)
 	order += time.Second
 
 	// then, try to invite them again. the "guest has already canceled" email should be sent
 	env.RegisterDelayedCallback(func() {
-		env.SignalWorkflow(common.SignalInviteGuest, guestID)
+		env.SignalWorkflow(SignalInviteGuest, guestID)
 	}, order)
 	order += time.Second
 
 	// cancel original workflow to not timeout
 	env.RegisterDelayedCallback(func() {
-		env.SignalWorkflow(common.SignalCancelAccount, nil)
+		env.SignalWorkflow(SignalCancelAccount, nil)
 	}, order)
 	order += time.Second
 
@@ -309,7 +307,7 @@ func (s *UnitTestSuite) Test_InviteGuestPreviouslyCanceled() {
 	s.NoError(env.GetWorkflowError())
 	s.NoError(env.GetWorkflowResult(nil))
 
-	env.AssertCalled(s.T(), "SendEmail", mock.Anything, common.EmailGuestCanceled)
+	env.AssertCalled(s.T(), "SendEmail", mock.Anything, EmailGuestCanceled)
 }
 
 func (s *UnitTestSuite) Test_SendEmailActivity() {

@@ -9,9 +9,10 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	wf "github.com/afitz0/customer-loyalty-workflow/go"
-	"github.com/afitz0/customer-loyalty-workflow/go/common"
 	"github.com/afitz0/customer-loyalty-workflow/go/zapadapter"
 )
+
+const TaskQueue = "CustomerLoyaltyTaskQueue"
 
 func main() {
 	logger := zapadapter.NewZapAdapter(zapadapter.NewZapLogger(zapcore.DebugLevel))
@@ -23,7 +24,7 @@ func main() {
 	}
 	defer c.Close()
 
-	w := worker.New(c, common.TaskQueue, worker.Options{})
+	w := worker.New(c, TaskQueue, worker.Options{})
 
 	a := &wf.Activities{}
 	w.RegisterWorkflow(wf.CustomerLoyaltyWorkflow)
