@@ -2,9 +2,10 @@ package loyalty
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/pkg/errors"
 	"go.temporal.io/api/enums/v1"
-	"time"
 
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/sdk/temporal"

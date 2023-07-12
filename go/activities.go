@@ -2,6 +2,7 @@ package loyalty
 
 import (
 	"context"
+
 	"go.temporal.io/sdk/activity"
 )
 
