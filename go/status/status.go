@@ -1,7 +1,5 @@
 package status
 
-import "github.com/afitz0/customer-loyalty-workflow/go/common"
-
 var Levels = []Tier{
 	{
 		Name:          "Member",
@@ -68,7 +66,12 @@ type (
 
 func NewStatus(level int) Status {
 	// Guard for known levels.
-	level = common.Max(common.Min(len(Levels)-1, level), 0)
+	if level >= len(Levels) {
+		level = len(Levels) - 1
+	}
+	if level < 0 {
+		level = 0
+	}
 	return &Level{level}
 }
 
@@ -106,7 +109,10 @@ func (s *Level) EnsureMinimum(tier Tier) bool {
 }
 
 func (s *Level) PreviousTier() Tier {
-	return Levels[common.Max(s.level-1, 0)]
+	if s.level == 0 {
+		return Levels[0]
+	}
+	return Levels[s.level-1]
 }
 
 func (s *Level) NumGuestsAllowed() int {
