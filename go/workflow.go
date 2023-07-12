@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pkg/errors"
 	"go.temporal.io/api/enums/v1"
-
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -140,14 +138,14 @@ func signalAddPoints(ctx workflow.Context, c workflow.ReceiveChannel, customer *
 			fmt.Sprintf(common.EmailPromoted, customer.Status.Name())).
 			Get(ctx, nil)
 		if err != nil {
-			return errors.Wrap(err, "Error running SendEmail activity for status promotion.")
+			return fmt.Errorf("error running SendEmail activity for status promotion: %w", err)
 		}
 	} else if statusChange < 0 {
 		err := workflow.ExecuteActivity(ctx, activities.SendEmail,
 			fmt.Sprintf(common.EmailDemoted, customer.Status.Name())).
 			Get(ctx, nil)
 		if err != nil {
-			return errors.Wrap(err, "Error running SendEmail activity for status demotion.")
+			return fmt.Errorf("error running SendEmail activity for status demotion: %w", err)
 		}
 	}
 
@@ -186,10 +184,10 @@ func signalInviteGuest(ctx workflow.Context, c workflow.ReceiveChannel, customer
 				logger.Info("Failed to signal 'already started' guest account; child workflow likely closed.")
 				emailToSend = common.EmailGuestCanceled
 			} else if err != nil {
-				return errors.Wrapf(err, "Could not signal guest/child workflow for guest ID '%v'.", guestID)
+				return fmt.Errorf("could not signal guest/child workflow for guest ID '%v': %w", guestID, err)
 			}
 		} else if err != nil {
-			return errors.Wrapf(err, "Could not start guest/child workflow for guest ID '%v'.", guestID)
+			return fmt.Errorf("could not start guest/child workflow for guest ID '%v': %w", guestID, err)
 		}
 	} else {
 		logger.Info("Customer does not have sufficient status to invite more guests.")
@@ -198,14 +196,13 @@ func signalInviteGuest(ctx workflow.Context, c workflow.ReceiveChannel, customer
 
 	err := workflow.ExecuteActivity(ctx, activities.SendEmail, emailToSend).Get(ctx, nil)
 	if err != nil {
-		return errors.Wrap(err, "Error running SendEmail activity.")
+		return fmt.Errorf("error running SendEmail activity: %w", err)
 	}
 
 	return nil
 }
 
 func signalEnsureMinimumStatus(ctx workflow.Context, c workflow.ReceiveChannel, customer *CustomerInfo) error {
-	logger := workflow.GetLogger(ctx)
 	activities := Activities{}
 
 	var minStatus status.Tier
@@ -217,8 +214,7 @@ func signalEnsureMinimumStatus(ctx workflow.Context, c workflow.ReceiveChannel, 
 		emailBody := fmt.Sprintf(common.EmailPromoted, minStatus.Name)
 		err := workflow.ExecuteActivity(ctx, activities.SendEmail, emailBody).Get(ctx, nil)
 		if err != nil {
-			logger.Error("Error running SendEmail activity.", "Error", err)
-			return err
+			return fmt.Errorf("error running SendEmail activity: %w", err)
 		}
 	}
 
@@ -235,8 +231,7 @@ func signalCancelAccount(ctx workflow.Context, c workflow.ReceiveChannel, custom
 	customer.AccountActive = false
 	err := workflow.ExecuteActivity(ctx, activities.SendEmail, common.EmailCancelAccount).Get(ctx, nil)
 	if err != nil {
-		logger.Error("Error running SendEmail activity.", "Error", err)
-		return err
+		return fmt.Errorf("error running SendEmail activity: %w", err)
 	}
 
 	logger.Info("Canceled account.", "CustomerID", customer.CustomerID)
