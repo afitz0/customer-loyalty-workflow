@@ -280,12 +280,9 @@ func queryGetStatus(ctx workflow.Context, customer CustomerInfo) (GetStatusRespo
 
 func queryGetGuests(ctx workflow.Context, customer CustomerInfo) ([]string, error) {
 	logger := workflow.GetLogger(ctx)
-	guestIDs := make([]string, len(customer.Guests))
-
-	i := 0
+	guestIDs := make([]string, 0, len(customer.Guests))
 	for k := range customer.Guests {
-		guestIDs[i] = k
-		i++
+		guestIDs = append(guestIDs, k)
 	}
 
 	logger.Info("Got guest list query.", "Guests", guestIDs)
