@@ -3,6 +3,7 @@ package loyalty
 import (
 	"context"
 	"errors"
+
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/sdk/activity"
