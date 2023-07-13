@@ -57,6 +57,7 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 	info := workflow.GetInfo(ctx)
 	selector := workflow.NewSelector(ctx)
 	activities := Activities{}
+	workflowCanceled := false
 	var errSignal error
 
 	logger.Debug("Got workflow info.", "WorkflowID", info.WorkflowExecution.ID)
@@ -98,6 +99,14 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 			errSignal = signalCancelAccount(ctx, c, &customer)
 		})
 
+	// handle Temporal Server cancellation requests
+	selector.AddReceive(ctx.Done(),
+		func(c workflow.ReceiveChannel, _ bool) {
+			c.Receive(ctx, nil)
+			logger.Info("Cancellation requested.")
+			workflowCanceled = true
+		})
+
 	// query handler for status level, etc
 	err = workflow.SetQueryHandler(ctx, QueryGetStatus,
 		func() (GetStatusResponse, error) {
@@ -119,7 +128,7 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 	// Block on everything. Continue-As-New on history length; size of activities in this workflow are small enough
 	// that we'll hit the length thresholds well before any size threshold.
 	logger.Info("Waiting for new signals")
-	for customer.AccountActive && info.GetCurrentHistoryLength() < EventsThreshold {
+	for customer.AccountActive && info.GetCurrentHistoryLength() < EventsThreshold && !workflowCanceled {
 		selector.Select(ctx)
 
 		if errSignal != nil {
@@ -129,11 +138,11 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo) (err e
 	}
 
 	// here because of events threshold, but account still active? Continue-As-New
-	if customer.AccountActive {
+	if customer.AccountActive && !workflowCanceled {
 		return workflow.NewContinueAsNewError(ctx, customer)
 	}
 
-	logger.Info("Loyalty workflow completed.", "Customer", customer)
+	logger.Info("Loyalty workflow completed.", "Customer", customer, "WorkflowCanceled", workflowCanceled)
 	return nil
 }
 
