@@ -3,7 +3,6 @@ module github.com/afitz0/customer-loyalty-workflow/go
 go 1.20
 
 require (
-	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.2
 	go.temporal.io/api v1.19.1-0.20230322213042-07fb271d475b
 	go.temporal.io/sdk v1.22.2
