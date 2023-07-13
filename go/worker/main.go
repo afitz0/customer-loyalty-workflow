@@ -12,8 +12,6 @@ import (
 	"github.com/afitz0/customer-loyalty-workflow/go/zapadapter"
 )
 
-const TaskQueue = "CustomerLoyaltyTaskQueue"
-
 func main() {
 	logger := zapadapter.NewZapAdapter(zapadapter.NewZapLogger(zapcore.DebugLevel))
 	c, err := client.Dial(client.Options{
@@ -24,9 +22,11 @@ func main() {
 	}
 	defer c.Close()
 
-	w := worker.New(c, TaskQueue, worker.Options{})
+	w := worker.New(c, wf.TaskQueue, worker.Options{})
 
-	a := &wf.Activities{}
+	a := &wf.Activities{
+		Client: c,
+	}
 	w.RegisterWorkflow(wf.CustomerLoyaltyWorkflow)
 	w.RegisterActivity(a)
 

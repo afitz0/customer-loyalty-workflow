@@ -1,19 +1,16 @@
 package loyalty
 
-import "github.com/afitz0/customer-loyalty-workflow/go/status"
-
 type CustomerInfo struct {
 	CustomerID    string
 	LoyaltyPoints int
-	StatusLevel   int
-	Status        status.Status
+	StatusLevel   *StatusLevel
 	Name          string
-	Guests        map[string]struct{}
+	Guests        []string
 	AccountActive bool
 }
 
 type GetStatusResponse struct {
-	Tier          status.Tier
+	StatusLevel   StatusLevel
 	Points        int
 	AccountActive bool
 }

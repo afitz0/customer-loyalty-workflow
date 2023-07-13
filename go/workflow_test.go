@@ -2,9 +2,11 @@ package loyalty
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
+	"go.temporal.io/sdk/converter"
 	"go.temporal.io/sdk/testsuite"
 	"go.temporal.io/sdk/worker"
 
@@ -13,7 +15,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/afitz0/customer-loyalty-workflow/go/status"
 	"github.com/afitz0/customer-loyalty-workflow/go/zapadapter"
 )
 
@@ -36,7 +37,7 @@ func (s *UnitTestSuite) Test_Workflow() {
 	customer := CustomerInfo{
 		CustomerID:    "123",
 		LoyaltyPoints: 0,
-		StatusLevel:   0,
+		StatusLevel:   StatusLevels[0],
 		Name:          "Customer",
 		AccountActive: true,
 	}
@@ -47,6 +48,7 @@ func (s *UnitTestSuite) Test_Workflow() {
 
 	s.True(env.IsWorkflowCompleted())
 	s.NoError(env.GetWorkflowError())
+	s.NoError(env.GetWorkflowResult(nil))
 }
 
 func (s *UnitTestSuite) Test_AddPoints() {
@@ -70,13 +72,13 @@ func (s *UnitTestSuite) Test_AddPoints() {
 	}, time.Second*2)
 
 	customer := CustomerInfo{
-		CustomerID:    "123",
-		LoyaltyPoints: 0,
-		StatusLevel:   0,
-		Name:          "Customer",
+		StatusLevel:   StatusLevels[0],
 		AccountActive: true,
 	}
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
+	s.True(env.IsWorkflowCompleted())
+	s.NoError(env.GetWorkflowError())
+	s.NoError(env.GetWorkflowResult(nil))
 }
 
 func (s *UnitTestSuite) Test_AddPointsForSinglePromo() {
@@ -84,7 +86,7 @@ func (s *UnitTestSuite) Test_AddPointsForSinglePromo() {
 	env.RegisterActivity(&Activities{})
 
 	env.RegisterDelayedCallback(func() {
-		env.SignalWorkflow(SignalAddPoints, status.Levels[1].MinimumPoints)
+		env.SignalWorkflow(SignalAddPoints, StatusLevels[1].MinimumPoints)
 	}, 0)
 	env.RegisterDelayedCallback(func() {
 		result, err := env.QueryWorkflow(QueryGetStatus)
@@ -93,29 +95,29 @@ func (s *UnitTestSuite) Test_AddPointsForSinglePromo() {
 		var state GetStatusResponse
 		err = result.Get(&state)
 		s.NoError(err)
-		s.Equal(status.Levels[1].MinimumPoints, state.Points)
-		s.Equal(status.Levels[1], state.Tier)
+		s.Equal(StatusLevels[1].MinimumPoints, state.Points)
+		s.Equal(StatusLevels[1], &state.StatusLevel)
 	}, time.Second*1)
 	env.RegisterDelayedCallback(func() {
 		env.SignalWorkflow(SignalCancelAccount, nil)
 	}, time.Second*2)
 
 	customer := CustomerInfo{
-		CustomerID:    "123",
-		LoyaltyPoints: 0,
-		StatusLevel:   0,
-		Name:          "Customer",
+		StatusLevel:   StatusLevels[0],
 		AccountActive: true,
 	}
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
+	s.True(env.IsWorkflowCompleted())
+	s.NoError(env.GetWorkflowError())
+	s.NoError(env.GetWorkflowResult(nil))
 }
 
 func (s *UnitTestSuite) Test_AddPointsForMultiPromo() {
 	env := s.NewTestWorkflowEnvironment()
 	env.RegisterActivity(&Activities{})
 
-	targetLevel := len(status.Levels) - 1
-	targetTier := status.Levels[targetLevel]
+	targetLevel := len(StatusLevels) - 1
+	targetTier := StatusLevels[targetLevel]
 
 	env.RegisterDelayedCallback(func() {
 		env.SignalWorkflow(SignalAddPoints, targetTier.MinimumPoints)
@@ -128,20 +130,20 @@ func (s *UnitTestSuite) Test_AddPointsForMultiPromo() {
 		err = result.Get(&state)
 		s.NoError(err)
 		s.Equal(targetTier.MinimumPoints, state.Points)
-		s.Equal(targetTier, state.Tier)
+		s.Equal(targetTier, &state.StatusLevel)
 	}, time.Second*1)
 	env.RegisterDelayedCallback(func() {
 		env.SignalWorkflow(SignalCancelAccount, nil)
 	}, time.Second*2)
 
 	customer := CustomerInfo{
-		CustomerID:    "123",
-		LoyaltyPoints: 0,
-		StatusLevel:   0,
-		Name:          "Customer",
+		StatusLevel:   StatusLevels[0],
 		AccountActive: true,
 	}
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
+	s.True(env.IsWorkflowCompleted())
+	s.NoError(env.GetWorkflowError())
+	s.NoError(env.GetWorkflowResult(nil))
 }
 
 func (s *UnitTestSuite) Test_CancelAccount() {
@@ -170,53 +172,75 @@ func (s *UnitTestSuite) Test_CancelAccount() {
 		AccountActive: true,
 	}
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
+	s.True(env.IsWorkflowCompleted())
+	s.NoError(env.GetWorkflowError())
+	s.NoError(env.GetWorkflowResult(nil))
+
 	env.AssertCalled(s.T(), "SendEmail", mock.Anything, EmailCancelAccount)
 }
 
 func (s *UnitTestSuite) Test_InviteGuest() {
 	env := s.NewTestWorkflowEnvironment()
-	env.RegisterActivity(&Activities{})
+	childEnv := s.NewTestWorkflowEnvironment()
 
-	// first, invite the guest. This should result in another workflow being started
+	a := &Activities{}
+	env.RegisterActivity(a)
+	childEnv.RegisterActivity(a)
+
+	env.OnActivity(a.SendEmail, mock.Anything, mock.Anything).
+		Return(nil)
+	childEnv.OnActivity(a.SendEmail, mock.Anything, mock.Anything).
+		Return(nil)
+
+	env.OnActivity(a.StartGuestWorkflow, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			guest := args.Get(1).(CustomerInfo)
+			childEnv.ExecuteWorkflow(CustomerLoyaltyWorkflow, guest)
+		}).
+		Return(nil)
+
 	env.RegisterDelayedCallback(func() {
-		guestID := "guest"
-		env.SignalWorkflow(SignalInviteGuest, guestID)
+		env.SignalWorkflow(SignalInviteGuest, "guest")
 	}, 0)
 
-	// then, see if we can query it
 	env.RegisterDelayedCallback(func() {
-		result, err := env.QueryWorkflowByID(
-			CustomerWorkflowID("guest"),
-			QueryGetStatus)
+		val, err := childEnv.QueryWorkflow(QueryGetStatus)
 		s.NoError(err)
-		var state GetStatusResponse
-		err = result.Get(&state)
+		var r GetStatusResponse
+		err = val.Get(&r)
 		s.NoError(err)
-		s.True(state.AccountActive)
-	}, time.Second*1)
+		s.True(r.AccountActive)
+	}, time.Second)
 
 	// cancel workflows to not timeout
 	env.RegisterDelayedCallback(func() {
+		childEnv.SignalWorkflow(SignalCancelAccount, nil)
 		env.SignalWorkflow(SignalCancelAccount, nil)
-		err := env.SignalWorkflowByID(
-			CustomerWorkflowID("guest"),
-			SignalCancelAccount, nil)
-		s.NoError(err)
 	}, time.Second*2)
 
 	customer := CustomerInfo{
-		CustomerID:    "123",
-		LoyaltyPoints: 0,
-		StatusLevel:   1,
-		Name:          "Customer",
+		CustomerID:    "host",
+		StatusLevel:   StatusLevels[2],
 		AccountActive: true,
 	}
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
+	s.True(env.IsWorkflowCompleted())
+	s.NoError(env.GetWorkflowError())
+	s.NoError(env.GetWorkflowResult(nil))
+
+	env.AssertCalled(s.T(), "SendEmail", mock.Anything, EmailGuestInvited)
+	env.AssertNotCalled(s.T(), "SendEmail", mock.Anything, EmailInsufficientPoints)
+
+	childEnv.AssertCalled(s.T(), "SendEmail", mock.Anything, fmt.Sprintf(EmailWelcome, StatusLevels[1].Name))
 }
 
 func (s *UnitTestSuite) Test_QueryGuests() {
 	env := s.NewTestWorkflowEnvironment()
-	env.RegisterActivity(&Activities{})
+
+	a := &Activities{}
+	env.RegisterActivity(a)
+
+	env.OnActivity(a.StartGuestWorkflow, mock.Anything, mock.Anything).Return(nil)
 
 	guestID := "guest"
 
@@ -239,47 +263,44 @@ func (s *UnitTestSuite) Test_QueryGuests() {
 	// cancel workflows to not timeout
 	env.RegisterDelayedCallback(func() {
 		env.SignalWorkflow(SignalCancelAccount, nil)
-		err := env.SignalWorkflowByID(
-			CustomerWorkflowID("guest"),
-			SignalCancelAccount, nil)
-		s.NoError(err)
 	}, time.Second*2)
 
 	customer := CustomerInfo{
-		CustomerID:    "123",
-		LoyaltyPoints: 0,
-		StatusLevel:   1,
-		Name:          "Customer",
+		StatusLevel:   StatusLevels[1],
 		AccountActive: true,
 	}
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
+	s.True(env.IsWorkflowCompleted())
+	s.NoError(env.GetWorkflowError())
+	s.NoError(env.GetWorkflowResult(nil))
 }
 
 func (s *UnitTestSuite) Test_InviteGuestPreviouslyCanceled() {
 	env := s.NewTestWorkflowEnvironment()
 
-	env.RegisterActivity(&Activities{})
-	env.OnActivity("SendEmail", mock.Anything, mock.Anything).Return(
-		func(ctx context.Context, body string) (err error) {
-			return nil
+	a := &Activities{}
+	env.RegisterActivity(a)
+
+	env.OnActivity(a.SendEmail, mock.Anything, mock.Anything).Return(nil)
+
+	call := 0
+	env.OnActivity(a.StartGuestWorkflow, mock.Anything, mock.Anything).
+		Twice().
+		Return(func(_ context.Context, _ CustomerInfo) error {
+			if call == 0 {
+				call++
+				return nil
+			} else {
+				return &GuestAlreadyCanceledError{}
+			}
 		})
 
 	order := time.Second
 	guestID := "guest"
-	guestWfID := CustomerWorkflowID(guestID)
 
 	// first, invite the guest. This should result in another workflow being started
 	env.RegisterDelayedCallback(func() {
 		env.SignalWorkflow(SignalInviteGuest, guestID)
-	}, order)
-	order += time.Second
-
-	// immediately cancel the guest account. this should keep it queryable, but sets AccountActive -> false
-	env.RegisterDelayedCallback(func() {
-		err := env.SignalWorkflowByID(
-			guestWfID,
-			SignalCancelAccount, nil)
-		s.NoError(err)
 	}, order)
 	order += time.Second
 
@@ -296,10 +317,7 @@ func (s *UnitTestSuite) Test_InviteGuestPreviouslyCanceled() {
 	order += time.Second
 
 	customer := CustomerInfo{
-		CustomerID:    "123",
-		LoyaltyPoints: 0,
-		StatusLevel:   2,
-		Name:          "Customer",
+		StatusLevel:   StatusLevels[2],
 		AccountActive: true,
 	}
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
@@ -307,6 +325,7 @@ func (s *UnitTestSuite) Test_InviteGuestPreviouslyCanceled() {
 	s.NoError(env.GetWorkflowError())
 	s.NoError(env.GetWorkflowResult(nil))
 
+	env.AssertCalled(s.T(), "SendEmail", mock.Anything, EmailGuestInvited)
 	env.AssertCalled(s.T(), "SendEmail", mock.Anything, EmailGuestCanceled)
 }
 
@@ -321,8 +340,12 @@ func (s *UnitTestSuite) Test_SendEmailActivity() {
 }
 
 func (s *UnitTestSuite) Test_SimpleReplay() {
-	replayer := worker.NewWorkflowReplayer()
+	replayer, err := worker.NewWorkflowReplayerWithOptions(worker.WorkflowReplayerOptions{
+		DataConverter: converter.GetDefaultDataConverter(),
+	})
+	s.NoError(err)
+
 	replayer.RegisterWorkflow(CustomerLoyaltyWorkflow)
-	err := replayer.ReplayWorkflowHistoryFromJSONFile(nil, "simple_replay.json")
+	err = replayer.ReplayWorkflowHistoryFromJSONFile(nil, "simple_replay.json")
 	s.NoError(err)
 }
