@@ -14,8 +14,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/afitz0/customer-loyalty-workflow/go/zapadapter"
 )
 
 type UnitTestSuite struct {
@@ -25,7 +23,7 @@ type UnitTestSuite struct {
 
 func TestUnitTestSuite(t *testing.T) {
 	s := new(UnitTestSuite)
-	logger := zapadapter.NewZapAdapter(zapadapter.NewZapLogger(zapcore.WarnLevel))
+	logger := NewZapAdapter(NewZapLogger(zapcore.WarnLevel))
 	s.SetLogger(logger)
 	suite.Run(t, s)
 }

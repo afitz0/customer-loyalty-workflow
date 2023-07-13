@@ -9,11 +9,10 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	wf "github.com/afitz0/customer-loyalty-workflow/go"
-	"github.com/afitz0/customer-loyalty-workflow/go/zapadapter"
 )
 
 func main() {
-	logger := zapadapter.NewZapAdapter(zapadapter.NewZapLogger(zapcore.DebugLevel))
+	logger := wf.NewZapAdapter(wf.NewZapLogger(zapcore.DebugLevel))
 	c, err := client.Dial(client.Options{
 		Logger: logger,
 	})

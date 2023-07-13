@@ -1,4 +1,4 @@
-package zapadapter
+package loyalty
 
 import (
 	"fmt"
