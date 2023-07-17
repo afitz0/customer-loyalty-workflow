@@ -4,11 +4,9 @@ import (
 	"context"
 	"log"
 
-	"go.temporal.io/sdk/client"
-
-	"go.uber.org/zap/zapcore"
-
 	wf "github.com/afitz0/customer-loyalty-workflow/go"
+	"go.temporal.io/sdk/client"
+	"go.uber.org/zap/zapcore"
 )
 
 func main() {
@@ -31,7 +29,7 @@ func main() {
 		TaskQueue: wf.TaskQueue,
 	}
 
-	we, err := c.ExecuteWorkflow(context.Background(), workflowOptions, wf.CustomerLoyaltyWorkflow, customer)
+	we, err := c.ExecuteWorkflow(context.Background(), workflowOptions, wf.CustomerLoyaltyWorkflow, customer, true)
 	if err != nil {
 		log.Fatalln("Unable to execute workflow.", err)
 	}

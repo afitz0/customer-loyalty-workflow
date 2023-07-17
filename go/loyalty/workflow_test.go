@@ -3,6 +3,7 @@ package loyalty
 import (
 	"context"
 	"fmt"
+	"go.temporal.io/sdk/temporal"
 	"testing"
 	"time"
 
@@ -42,7 +43,7 @@ func (s *UnitTestSuite) Test_Workflow() {
 	env.RegisterDelayedCallback(func() {
 		env.SignalWorkflow(SignalCancelAccount, nil)
 	}, 0)
-	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
+	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer, true)
 
 	s.True(env.IsWorkflowCompleted())
 	s.NoError(env.GetWorkflowError())
@@ -73,7 +74,7 @@ func (s *UnitTestSuite) Test_AddPoints() {
 		StatusLevel:   StatusLevels[0],
 		AccountActive: true,
 	}
-	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
+	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer, true)
 	s.True(env.IsWorkflowCompleted())
 	s.NoError(env.GetWorkflowError())
 	s.NoError(env.GetWorkflowResult(nil))
@@ -104,7 +105,7 @@ func (s *UnitTestSuite) Test_AddPointsForSinglePromo() {
 		StatusLevel:   StatusLevels[0],
 		AccountActive: true,
 	}
-	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
+	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer, true)
 	s.True(env.IsWorkflowCompleted())
 	s.NoError(env.GetWorkflowError())
 	s.NoError(env.GetWorkflowResult(nil))
@@ -138,7 +139,7 @@ func (s *UnitTestSuite) Test_AddPointsForMultiPromo() {
 		StatusLevel:   StatusLevels[0],
 		AccountActive: true,
 	}
-	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
+	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer, true)
 	s.True(env.IsWorkflowCompleted())
 	s.NoError(env.GetWorkflowError())
 	s.NoError(env.GetWorkflowResult(nil))
@@ -169,12 +170,12 @@ func (s *UnitTestSuite) Test_CancelAccount() {
 		CustomerID:    "123",
 		AccountActive: true,
 	}
-	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
+	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer, true)
 	s.True(env.IsWorkflowCompleted())
 	s.NoError(env.GetWorkflowError())
 	s.NoError(env.GetWorkflowResult(nil))
 
-	env.AssertCalled(s.T(), "SendEmail", mock.Anything, EmailCancelAccount)
+	env.AssertCalled(s.T(), "SendEmail", mock.Anything, emailCancelAccount)
 }
 
 func (s *UnitTestSuite) Test_InviteGuest() {
@@ -193,7 +194,7 @@ func (s *UnitTestSuite) Test_InviteGuest() {
 	env.OnActivity(a.StartGuestWorkflow, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			guest := args.Get(1).(CustomerInfo)
-			childEnv.ExecuteWorkflow(CustomerLoyaltyWorkflow, guest)
+			childEnv.ExecuteWorkflow(CustomerLoyaltyWorkflow, guest, true)
 		}).
 		Return(nil)
 
@@ -221,15 +222,15 @@ func (s *UnitTestSuite) Test_InviteGuest() {
 		StatusLevel:   StatusLevels[2],
 		AccountActive: true,
 	}
-	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
+	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer, true)
 	s.True(env.IsWorkflowCompleted())
 	s.NoError(env.GetWorkflowError())
 	s.NoError(env.GetWorkflowResult(nil))
 
-	env.AssertCalled(s.T(), "SendEmail", mock.Anything, EmailGuestInvited)
-	env.AssertNotCalled(s.T(), "SendEmail", mock.Anything, EmailInsufficientPoints)
+	env.AssertCalled(s.T(), "SendEmail", mock.Anything, emailGuestInvited)
+	env.AssertNotCalled(s.T(), "SendEmail", mock.Anything, emailInsufficientPoints)
 
-	childEnv.AssertCalled(s.T(), "SendEmail", mock.Anything, fmt.Sprintf(EmailWelcome, StatusLevels[1].Name))
+	childEnv.AssertCalled(s.T(), "SendEmail", mock.Anything, fmt.Sprintf(emailWelcome, StatusLevels[1].Name))
 }
 
 func (s *UnitTestSuite) Test_QueryGuests() {
@@ -267,7 +268,7 @@ func (s *UnitTestSuite) Test_QueryGuests() {
 		StatusLevel:   StatusLevels[1],
 		AccountActive: true,
 	}
-	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
+	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer, true)
 	s.True(env.IsWorkflowCompleted())
 	s.NoError(env.GetWorkflowError())
 	s.NoError(env.GetWorkflowResult(nil))
@@ -289,7 +290,7 @@ func (s *UnitTestSuite) Test_InviteGuestPreviouslyCanceled() {
 				call++
 				return nil
 			} else {
-				return &GuestAlreadyCanceledError{}
+				return temporal.NewApplicationError("", "GuestAlreadyCanceledError")
 			}
 		})
 
@@ -318,13 +319,13 @@ func (s *UnitTestSuite) Test_InviteGuestPreviouslyCanceled() {
 		StatusLevel:   StatusLevels[2],
 		AccountActive: true,
 	}
-	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer)
+	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer, true)
 	s.True(env.IsWorkflowCompleted())
 	s.NoError(env.GetWorkflowError())
 	s.NoError(env.GetWorkflowResult(nil))
 
-	env.AssertCalled(s.T(), "SendEmail", mock.Anything, EmailGuestInvited)
-	env.AssertCalled(s.T(), "SendEmail", mock.Anything, EmailGuestCanceled)
+	env.AssertCalled(s.T(), "SendEmail", mock.Anything, emailGuestInvited)
+	env.AssertCalled(s.T(), "SendEmail", mock.Anything, emailGuestCanceled)
 }
 
 func (s *UnitTestSuite) Test_SendEmailActivity() {

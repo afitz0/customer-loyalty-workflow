@@ -3,6 +3,7 @@ package loyalty
 import (
 	"context"
 	"errors"
+	"go.temporal.io/sdk/temporal"
 
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/api/serviceerror"
@@ -30,11 +31,12 @@ func (a *Activities) StartGuestWorkflow(ctx context.Context, guest CustomerInfo)
 
 	logger.Info("Starting and signaling guest workflow.", "GuestID", guest.CustomerID)
 	_, err := a.Client.SignalWithStartWorkflow(ctx, CustomerWorkflowID(guest.CustomerID),
-		SignalEnsureMinimumStatus, guest.StatusLevel,
-		workflowOptions, CustomerLoyaltyWorkflow, guest)
+		SignalEnsureMinimumStatus, guest.StatusLevel.Ordinal,
+		workflowOptions, CustomerLoyaltyWorkflow, guest, true)
 	target := &serviceerror.WorkflowExecutionAlreadyStarted{}
 	if errors.As(err, &target) {
-		return &GuestAlreadyCanceledError{msg: "Guest account cannot be recreated from a closed status."}
+		return temporal.NewApplicationError("Guest account cannot be recreated from a closed status.",
+			"GuestAlreadyCanceledError")
 	} else if err != nil {
 		return err
 	}
