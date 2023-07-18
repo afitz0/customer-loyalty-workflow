@@ -37,9 +37,6 @@ func (a *Activities) StartGuestWorkflow(ctx context.Context, guest CustomerInfo)
 	if errors.As(err, &target) {
 		return temporal.NewApplicationError("Guest account cannot be recreated from a closed status.",
 			"GuestAlreadyCanceledError")
-	} else if err != nil {
-		return err
 	}
-
 	return nil
 }

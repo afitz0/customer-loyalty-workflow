@@ -77,7 +77,7 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo, newCus
 	// signal handler for adding points
 	selector.AddReceive(workflow.GetSignalChannel(ctx, SignalAddPoints),
 		func(c workflow.ReceiveChannel, _ bool) {
-			errSignal = signalAddPoints(ctx, c, &customer)
+			signalAddPoints(ctx, c, &customer)
 		})
 
 	// signal handler for adding guest
@@ -89,13 +89,13 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo, newCus
 	// signal handler for ensuring the customer is at least the given status. Used for invites and promoting an existing account.
 	selector.AddReceive(workflow.GetSignalChannel(ctx, SignalEnsureMinimumStatus),
 		func(c workflow.ReceiveChannel, _ bool) {
-			errSignal = signalEnsureMinimumStatus(ctx, c, &customer)
+			signalEnsureMinimumStatus(ctx, c, &customer)
 		})
 
 	// signal handler for canceling account
 	selector.AddReceive(workflow.GetSignalChannel(ctx, SignalCancelAccount),
 		func(c workflow.ReceiveChannel, _ bool) {
-			errSignal = signalCancelAccount(ctx, c, &customer)
+			signalCancelAccount(ctx, c, &customer)
 		})
 
 	// handle Temporal Server cancellation requests
@@ -145,9 +145,8 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo, newCus
 	logger.Info("Loyalty workflow completed.", "Customer", customer, "WorkflowCanceled", workflowCanceled)
 	if workflowCanceled {
 		return ctx.Err()
-	} else {
-		return nil
 	}
+	return nil
 }
 
 // CustomerWorkflowID generates a Workflow ID based on the given customer ID.
@@ -155,7 +154,7 @@ func CustomerWorkflowID(customerID string) string {
 	return "customer-" + customerID
 }
 
-func signalAddPoints(ctx workflow.Context, c workflow.ReceiveChannel, customer *CustomerInfo) error {
+func signalAddPoints(ctx workflow.Context, c workflow.ReceiveChannel, customer *CustomerInfo) {
 	logger := workflow.GetLogger(ctx)
 	var activities Activities
 
@@ -186,8 +185,6 @@ func signalAddPoints(ctx workflow.Context, c workflow.ReceiveChannel, customer *
 			logger.Error("Error running SendEmail activity for status demotion.", "Error", err)
 		}
 	}
-
-	return nil
 }
 
 func signalInviteGuest(ctx workflow.Context, c workflow.ReceiveChannel, customer *CustomerInfo) error {
@@ -234,7 +231,7 @@ func signalInviteGuest(ctx workflow.Context, c workflow.ReceiveChannel, customer
 	return nil
 }
 
-func signalEnsureMinimumStatus(ctx workflow.Context, c workflow.ReceiveChannel, customer *CustomerInfo) error {
+func signalEnsureMinimumStatus(ctx workflow.Context, c workflow.ReceiveChannel, customer *CustomerInfo) {
 	var activities Activities
 	logger := workflow.GetLogger(ctx)
 
@@ -252,11 +249,9 @@ func signalEnsureMinimumStatus(ctx workflow.Context, c workflow.ReceiveChannel, 
 			logger.Error("Error running SendEmail activity for promotion.", "Error", err)
 		}
 	}
-
-	return nil
 }
 
-func signalCancelAccount(ctx workflow.Context, c workflow.ReceiveChannel, customer *CustomerInfo) error {
+func signalCancelAccount(ctx workflow.Context, c workflow.ReceiveChannel, customer *CustomerInfo) {
 	logger := workflow.GetLogger(ctx)
 	var activities Activities
 
@@ -270,7 +265,6 @@ func signalCancelAccount(ctx workflow.Context, c workflow.ReceiveChannel, custom
 	}
 
 	logger.Info("Canceled account.", "CustomerID", customer.CustomerID)
-	return nil
 }
 
 func queryGetStatus(ctx workflow.Context, customer CustomerInfo) (GetStatusResponse, error) {
