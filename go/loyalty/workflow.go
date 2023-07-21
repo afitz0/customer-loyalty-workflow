@@ -59,13 +59,10 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo, newCus
 	workflowCanceled := false
 	var errSignal error
 
-	logger.Info("Validating customer info.")
-	customer.validate()
-
 	if newCustomer {
 		logger.Info("New customer workflow; sending welcome email.")
 		err := workflow.ExecuteActivity(ctx, activities.SendEmail,
-			fmt.Sprintf(emailWelcome, customer.StatusLevel.Name)).
+			fmt.Sprintf(emailWelcome, StatusLevelForPoints(customer.LoyaltyPoints).Name)).
 			Get(ctx, nil)
 		if err != nil {
 			logger.Error("Error running SendEmail activity for welcome email.", "Error", err)
@@ -162,24 +159,23 @@ func signalAddPoints(ctx workflow.Context, c workflow.ReceiveChannel, customer *
 	c.Receive(ctx, &pointsToAdd)
 
 	logger.Info("Adding points to customer account.", "PointsAdded", pointsToAdd)
-	customer.LoyaltyPoints += pointsToAdd
 
-	currentStatusOrd := customer.StatusLevel.Ordinal
-	customer.StatusLevel = StatusLevelForPoints(customer.LoyaltyPoints)
-	newStatusOrd := customer.StatusLevel.Ordinal
+	currentStatusOrd := StatusLevelForPoints(customer.LoyaltyPoints).Ordinal
+	customer.LoyaltyPoints += pointsToAdd
+	newStatusOrd := StatusLevelForPoints(customer.LoyaltyPoints).Ordinal
 
 	statusChange := newStatusOrd - currentStatusOrd
 
 	if statusChange > 0 {
 		err := workflow.ExecuteActivity(ctx, activities.SendEmail,
-			fmt.Sprintf(emailPromoted, customer.StatusLevel.Name)).
+			fmt.Sprintf(emailPromoted, StatusLevelForPoints(customer.LoyaltyPoints).Name)).
 			Get(ctx, nil)
 		if err != nil {
 			logger.Error("Error running SendEmail activity for status promotion.", "Error", err)
 		}
 	} else if statusChange < 0 {
 		err := workflow.ExecuteActivity(ctx, activities.SendEmail,
-			fmt.Sprintf(emailDemoted, customer.StatusLevel.Name)).
+			fmt.Sprintf(emailDemoted, StatusLevelForPoints(customer.LoyaltyPoints).Name)).
 			Get(ctx, nil)
 		if err != nil {
 			logger.Error("Error running SendEmail activity for status demotion.", "Error", err)
@@ -196,14 +192,14 @@ func signalInviteGuest(ctx workflow.Context, c workflow.ReceiveChannel, customer
 	c.Receive(ctx, &guestID)
 
 	logger.Info("Checking to see if customer has enough status to allow for a guest invite.", "Customer", customer)
-	if len(customer.Guests) < customer.StatusLevel.GuestsAllowed {
+	if len(customer.Guests) < StatusLevelForPoints(customer.LoyaltyPoints).GuestsAllowed {
 		logger.Info("Customer is allowed to invite guests. Attempting to invite.",
 			"GuestID", guestID)
 
 		guest := CustomerInfo{
 			CustomerID:    guestID,
-			StatusLevel:   customer.StatusLevel.Previous(),
 			AccountActive: true,
+			LoyaltyPoints: StatusLevelForPoints(customer.LoyaltyPoints).Previous().MinimumPoints,
 		}
 
 		customer.addGuest(guestID)
@@ -238,9 +234,8 @@ func signalEnsureMinimumStatus(ctx workflow.Context, c workflow.ReceiveChannel, 
 	var minStatusOrdinal int
 	c.Receive(ctx, &minStatusOrdinal)
 
-	if customer.StatusLevel.Ordinal < minStatusOrdinal {
+	if StatusLevelForPoints(customer.LoyaltyPoints).Ordinal < minStatusOrdinal {
 		newStatus := StatusLevels[minStatusOrdinal]
-		customer.StatusLevel = newStatus
 		customer.LoyaltyPoints = newStatus.MinimumPoints
 
 		emailBody := fmt.Sprintf(emailPromoted, newStatus.Name)
@@ -271,7 +266,7 @@ func queryGetStatus(ctx workflow.Context, customer CustomerInfo) (GetStatusRespo
 	logger := workflow.GetLogger(ctx)
 
 	response := GetStatusResponse{
-		StatusLevel:   *customer.StatusLevel,
+		StatusLevel:   *StatusLevelForPoints(customer.LoyaltyPoints),
 		Points:        customer.LoyaltyPoints,
 		AccountActive: customer.AccountActive,
 	}

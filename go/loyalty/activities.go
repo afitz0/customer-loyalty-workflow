@@ -31,8 +31,9 @@ func (a *Activities) StartGuestWorkflow(ctx context.Context, guest CustomerInfo)
 
 	logger.Info("Starting and signaling guest workflow.", "GuestID", guest.CustomerID)
 	_, err := a.Client.SignalWithStartWorkflow(ctx, CustomerWorkflowID(guest.CustomerID),
-		SignalEnsureMinimumStatus, guest.StatusLevel.Ordinal,
+		SignalEnsureMinimumStatus, StatusLevelForPoints(guest.LoyaltyPoints).Ordinal,
 		workflowOptions, CustomerLoyaltyWorkflow, guest, true)
+
 	target := &serviceerror.WorkflowExecutionAlreadyStarted{}
 	if errors.As(err, &target) {
 		return temporal.NewApplicationError("Guest account cannot be recreated from a closed status.",

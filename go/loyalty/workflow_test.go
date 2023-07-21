@@ -36,7 +36,6 @@ func (s *UnitTestSuite) Test_Workflow() {
 	customer := CustomerInfo{
 		CustomerID:    "123",
 		LoyaltyPoints: 0,
-		StatusLevel:   StatusLevels[0],
 		Name:          "Customer",
 		AccountActive: true,
 	}
@@ -71,7 +70,6 @@ func (s *UnitTestSuite) Test_AddPoints() {
 	}, time.Second*2)
 
 	customer := CustomerInfo{
-		StatusLevel:   StatusLevels[0],
 		AccountActive: true,
 	}
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer, true)
@@ -102,7 +100,6 @@ func (s *UnitTestSuite) Test_AddPointsForSinglePromo() {
 	}, time.Second*2)
 
 	customer := CustomerInfo{
-		StatusLevel:   StatusLevels[0],
 		AccountActive: true,
 	}
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer, true)
@@ -136,7 +133,6 @@ func (s *UnitTestSuite) Test_AddPointsForMultiPromo() {
 	}, time.Second*2)
 
 	customer := CustomerInfo{
-		StatusLevel:   StatusLevels[0],
 		AccountActive: true,
 	}
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer, true)
@@ -219,7 +215,7 @@ func (s *UnitTestSuite) Test_InviteGuest() {
 
 	customer := CustomerInfo{
 		CustomerID:    "host",
-		StatusLevel:   StatusLevels[2],
+		LoyaltyPoints: StatusLevels[2].MinimumPoints,
 		AccountActive: true,
 	}
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer, true)
@@ -265,7 +261,7 @@ func (s *UnitTestSuite) Test_QueryGuests() {
 	}, time.Second*2)
 
 	customer := CustomerInfo{
-		StatusLevel:   StatusLevels[1],
+		LoyaltyPoints: StatusLevels[1].MinimumPoints,
 		AccountActive: true,
 	}
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer, true)
@@ -280,7 +276,8 @@ func (s *UnitTestSuite) Test_InviteGuestPreviouslyCanceled() {
 	a := &Activities{}
 	env.RegisterActivity(a)
 
-	env.OnActivity(a.SendEmail, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity(a.SendEmail, mock.Anything, mock.Anything).
+		Return(nil)
 
 	call := 0
 	env.OnActivity(a.StartGuestWorkflow, mock.Anything, mock.Anything).
@@ -316,7 +313,7 @@ func (s *UnitTestSuite) Test_InviteGuestPreviouslyCanceled() {
 	order += time.Second
 
 	customer := CustomerInfo{
-		StatusLevel:   StatusLevels[2],
+		LoyaltyPoints: StatusLevels[2].MinimumPoints,
 		AccountActive: true,
 	}
 	env.ExecuteWorkflow(CustomerLoyaltyWorkflow, customer, true)
