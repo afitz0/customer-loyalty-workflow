@@ -9,7 +9,7 @@ import (
 )
 
 const TaskQueue = "CustomerLoyaltyTaskQueue"
-const EventsThreshold = 10000
+const EventsThreshold = 10_000
 
 // Signal, query, and error string constants
 const (
@@ -128,6 +128,10 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo, newCus
 	// here because of events threshold, but account still active? Continue-As-New
 	if customer.AccountActive && !workflowCanceled {
 		logger.Info("Account still active, but hit continue-as-new threshold; Continuing-As-New.", "Customer", customer.CustomerID)
+		// Drain signals before continuing-as-new
+		for selector.HasPending() {
+			selector.Select(ctx)
+		}
 		return workflow.NewContinueAsNewError(ctx, CustomerLoyaltyWorkflow, customer, false)
 	}
 
