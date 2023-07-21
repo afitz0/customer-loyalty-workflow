@@ -1,7 +1,6 @@
 package loyalty
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -44,14 +43,7 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo, newCus
 			InitialInterval: time.Second * 5,
 		},
 	}
-	lao := workflow.LocalActivityOptions{
-		ScheduleToCloseTimeout: 10 * time.Second,
-		RetryPolicy: &temporal.RetryPolicy{
-			NonRetryableErrorTypes: []string{"GuestAlreadyCanceledError"},
-		},
-	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
-	ctx = workflow.WithLocalActivityOptions(ctx, lao)
 
 	info := workflow.GetInfo(ctx)
 	selector := workflow.NewSelector(ctx)
@@ -203,14 +195,15 @@ func signalInviteGuest(ctx workflow.Context, c workflow.ReceiveChannel, customer
 		}
 
 		customer.addGuest(guestID)
-		err := workflow.ExecuteLocalActivity(ctx, activities.StartGuestWorkflow, guest).Get(ctx, nil)
-
-		var actErr *temporal.ApplicationError
-		errors.As(err, &actErr)
-		if actErr != nil && actErr.Type() == "GuestAlreadyCanceledError" {
-			emailToSend = emailGuestCanceled
-		} else if err != nil {
+		var inviteResult GuestInviteResult
+		err := workflow.ExecuteActivity(ctx, activities.StartGuestWorkflow, guest).
+			Get(ctx, &inviteResult)
+		if err != nil {
 			return fmt.Errorf("could not signal-with-start guest/child workflow for guest ID '%v': %w", guestID, err)
+		}
+
+		if inviteResult == GuestAlreadyCanceled {
+			emailToSend = emailGuestCanceled
 		} else {
 			emailToSend = emailGuestInvited
 		}

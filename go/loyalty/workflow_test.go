@@ -3,7 +3,6 @@ package loyalty
 import (
 	"context"
 	"fmt"
-	"go.temporal.io/sdk/temporal"
 	"testing"
 	"time"
 
@@ -192,7 +191,7 @@ func (s *UnitTestSuite) Test_InviteGuest() {
 			guest := args.Get(1).(CustomerInfo)
 			childEnv.ExecuteWorkflow(CustomerLoyaltyWorkflow, guest, true)
 		}).
-		Return(nil)
+		Return(GuestInvited, nil)
 
 	env.RegisterDelayedCallback(func() {
 		env.SignalWorkflow(SignalInviteGuest, "guest")
@@ -235,7 +234,8 @@ func (s *UnitTestSuite) Test_QueryGuests() {
 	a := &Activities{}
 	env.RegisterActivity(a)
 
-	env.OnActivity(a.StartGuestWorkflow, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity(a.StartGuestWorkflow, mock.Anything, mock.Anything).
+		Return(GuestInvited, nil)
 
 	guestID := "guest"
 
@@ -282,13 +282,12 @@ func (s *UnitTestSuite) Test_InviteGuestPreviouslyCanceled() {
 	call := 0
 	env.OnActivity(a.StartGuestWorkflow, mock.Anything, mock.Anything).
 		Twice().
-		Return(func(_ context.Context, _ CustomerInfo) error {
+		Return(func(_ context.Context, _ CustomerInfo) (GuestInviteResult, error) {
 			if call == 0 {
 				call++
-				return nil
-			} else {
-				return temporal.NewApplicationError("", "GuestAlreadyCanceledError")
+				return GuestInvited, nil
 			}
+			return GuestAlreadyCanceled, nil
 		})
 
 	order := time.Second

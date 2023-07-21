@@ -3,12 +3,17 @@ package loyalty
 import (
 	"context"
 	"errors"
-	"go.temporal.io/sdk/temporal"
-
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/client"
+)
+
+type GuestInviteResult int
+
+const (
+	GuestInvited GuestInviteResult = iota
+	GuestAlreadyCanceled
 )
 
 type Activities struct {
@@ -21,7 +26,7 @@ func (*Activities) SendEmail(ctx context.Context, body string) error {
 	return nil
 }
 
-func (a *Activities) StartGuestWorkflow(ctx context.Context, guest CustomerInfo) error {
+func (a *Activities) StartGuestWorkflow(ctx context.Context, guest CustomerInfo) (GuestInviteResult, error) {
 	logger := activity.GetLogger(ctx)
 
 	workflowOptions := client.StartWorkflowOptions{
@@ -36,8 +41,10 @@ func (a *Activities) StartGuestWorkflow(ctx context.Context, guest CustomerInfo)
 
 	target := &serviceerror.WorkflowExecutionAlreadyStarted{}
 	if errors.As(err, &target) {
-		return temporal.NewApplicationError("Guest account cannot be recreated from a closed status.",
-			"GuestAlreadyCanceledError")
+		return GuestAlreadyCanceled, nil
+	} else if err != nil {
+		return -1, err
 	}
-	return nil
+
+	return GuestInvited, nil
 }
