@@ -66,32 +66,44 @@ func CustomerLoyaltyWorkflow(ctx workflow.Context, customer CustomerInfo, newCus
 	// signal handler for adding points
 	selector.AddReceive(workflow.GetSignalChannel(ctx, SignalAddPoints),
 		func(c workflow.ReceiveChannel, _ bool) {
-			signalAddPoints(ctx, c, &customer)
+			var pointsToAdd int
+			c.Receive(ctx, &pointsToAdd)
+
+			signalAddPoints(ctx, pointsToAdd, &customer)
 		})
 
 	// signal handler for adding guest
 	selector.AddReceive(workflow.GetSignalChannel(ctx, SignalInviteGuest),
 		func(c workflow.ReceiveChannel, _ bool) {
-			errSignal = signalInviteGuest(ctx, c, &customer)
+			var guestID string
+			c.Receive(ctx, &guestID)
+
+			errSignal = signalInviteGuest(ctx, guestID, &customer)
 		})
 
 	// signal handler for ensuring the customer is at least the given status. Used for invites and promoting an existing account.
 	selector.AddReceive(workflow.GetSignalChannel(ctx, SignalEnsureMinimumStatus),
 		func(c workflow.ReceiveChannel, _ bool) {
-			signalEnsureMinimumStatus(ctx, c, &customer)
+			var minStatusOrdinal int
+			c.Receive(ctx, &minStatusOrdinal)
+
+			signalEnsureMinimumStatus(ctx, minStatusOrdinal, &customer)
 		})
 
 	// signal handler for canceling account
 	selector.AddReceive(workflow.GetSignalChannel(ctx, SignalCancelAccount),
 		func(c workflow.ReceiveChannel, _ bool) {
-			signalCancelAccount(ctx, c, &customer)
+			// nothing to receive, but need this to "handle" signal
+			c.Receive(ctx, nil)
+
+			signalCancelAccount(ctx, &customer)
 		})
 
 	// handle Temporal Server cancellation requests
 	selector.AddReceive(ctx.Done(),
 		func(c workflow.ReceiveChannel, _ bool) {
 			c.Receive(ctx, nil)
-			logger.Info("Cancellation requested.")
+			logger.Info("Workflow cancellation requested.")
 			workflowCanceled = true
 		})
 
@@ -147,12 +159,9 @@ func CustomerWorkflowID(customerID string) string {
 	return "customer-" + customerID
 }
 
-func signalAddPoints(ctx workflow.Context, c workflow.ReceiveChannel, customer *CustomerInfo) {
+func signalAddPoints(ctx workflow.Context, pointsToAdd int, customer *CustomerInfo) {
 	logger := workflow.GetLogger(ctx)
 	var activities Activities
-
-	var pointsToAdd int
-	c.Receive(ctx, &pointsToAdd)
 
 	logger.Info("Adding points to customer account.", "PointsAdded", pointsToAdd)
 
@@ -179,13 +188,11 @@ func signalAddPoints(ctx workflow.Context, c workflow.ReceiveChannel, customer *
 	}
 }
 
-func signalInviteGuest(ctx workflow.Context, c workflow.ReceiveChannel, customer *CustomerInfo) error {
+func signalInviteGuest(ctx workflow.Context, guestID string, customer *CustomerInfo) error {
 	logger := workflow.GetLogger(ctx)
 	var activities Activities
 
 	var emailToSend string
-	var guestID string
-	c.Receive(ctx, &guestID)
 
 	logger.Info("Checking to see if customer has enough status to allow for a guest invite.", "Customer", customer)
 	if len(customer.Guests) < StatusLevelForPoints(customer.LoyaltyPoints).GuestsAllowed {
@@ -224,12 +231,9 @@ func signalInviteGuest(ctx workflow.Context, c workflow.ReceiveChannel, customer
 	return nil
 }
 
-func signalEnsureMinimumStatus(ctx workflow.Context, c workflow.ReceiveChannel, customer *CustomerInfo) {
+func signalEnsureMinimumStatus(ctx workflow.Context, minStatusOrdinal int, customer *CustomerInfo) {
 	var activities Activities
 	logger := workflow.GetLogger(ctx)
-
-	var minStatusOrdinal int
-	c.Receive(ctx, &minStatusOrdinal)
 
 	if StatusLevelForPoints(customer.LoyaltyPoints).Ordinal < minStatusOrdinal {
 		newStatus := StatusLevels[minStatusOrdinal]
@@ -243,12 +247,9 @@ func signalEnsureMinimumStatus(ctx workflow.Context, c workflow.ReceiveChannel, 
 	}
 }
 
-func signalCancelAccount(ctx workflow.Context, c workflow.ReceiveChannel, customer *CustomerInfo) {
+func signalCancelAccount(ctx workflow.Context, customer *CustomerInfo) {
 	logger := workflow.GetLogger(ctx)
 	var activities Activities
-
-	// nothing to receive, but need this to "handle" signal
-	c.Receive(ctx, nil)
 
 	customer.AccountActive = false
 	err := workflow.ExecuteActivity(ctx, activities.SendEmail, emailCancelAccount).Get(ctx, nil)
