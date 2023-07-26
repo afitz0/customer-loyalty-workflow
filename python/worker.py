@@ -1,14 +1,14 @@
 import asyncio
+import logging
 
 from temporalio.client import Client
 from temporalio.worker import Worker
 
-from loyalty_workflow import *
-from shared import TASK_QUEUE
+from loyalty_workflow import CustomerLoyaltyWorkflow, TASK_QUEUE
+from activities import send_email
 
 
 async def main():
-    # Uncomment the line below to see logging
     logging.basicConfig(level=logging.INFO)
 
     # Start client

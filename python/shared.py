@@ -1,20 +1,9 @@
+from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from typing import Optional, Iterable, Any
 
 from dataclasses_json import config
-
-TASK_QUEUE = "CustomerLoyaltyTaskQueue"
-CUSTOMER_WORKFLOW_ID_FORMAT = "customer-{}"
-EVENT_HISTORY_THRESHOLD = 10000
-
-# Signal and query names
-SIGNAL_CANCEL_ACCOUNT = "cancelAccount"
-SIGNAL_ADD_POINTS = "addLoyaltyPoints"
-SIGNAL_INVITE_GUEST = "inviteGuest"
-SIGNAL_ENSURE_MINIMUM_STATUS = "ensureMinimumStatus"
-QUERY_GET_STATUS = "getStatus"
-QUERY_GET_GUESTS = "getGuests"
 
 
 @dataclass
