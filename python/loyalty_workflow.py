@@ -1,11 +1,7 @@
 import logging
 from datetime import timedelta
-from typing import Optional
 
 from temporalio import workflow
-from temporalio.common import WorkflowIDReusePolicy
-from temporalio.exceptions import WorkflowAlreadyStartedError
-from temporalio.client import WorkflowHandle
 
 from activities import send_email, start_guest_workflow
 
@@ -17,8 +13,7 @@ with workflow.unsafe.imports_passed_through():
     )
 
 TASK_QUEUE = "CustomerLoyaltyTaskQueue"
-CUSTOMER_WORKFLOW_ID_FORMAT = "customer-{}"
-EVENT_HISTORY_THRESHOLD = 10000
+EVENT_HISTORY_THRESHOLD = 10_000
 
 # Signal and query names
 SIGNAL_CANCEL_ACCOUNT = "cancelAccount"
@@ -35,14 +30,13 @@ class CustomerLoyaltyWorkflow:
         self.customer: Customer = Customer()
 
     @workflow.run
-    async def run(self, customer: Customer) -> str:
+    async def run(self, customer: Customer, is_new: bool = True) -> str:
         logging.basicConfig(level=logging.INFO)
         self.customer = customer
         workflow.logger.info("Running workflow with parameter %s" % customer)
         info: workflow.Info = workflow.info()
 
-        # print(self.customer.tier)
-        if not info.continued_run_id:
+        if is_new:
             await workflow.execute_activity(
                 send_email,
                 "Welcome to our loyalty program! You're starting out at '{}' status.".format(self.customer.tier.name),
@@ -55,10 +49,11 @@ class CustomerLoyaltyWorkflow:
 
         if self.customer.account_active:
             logging.info(
-                "Account %s still active, but event history threshold reached; continuing-as-new." % self.customer.customerId)
-            workflow.continue_as_new(self.customer)
+                "Account %s still active, but event history threshold reached; continuing-as-new."
+                % self.customer.id)
+            workflow.continue_as_new(args=[self.customer, False])
 
-        return "Loyalty workflow completed. Customer: %s" % self.customer.customerId
+        return "Loyalty workflow completed. Customer: %s" % self.customer.id
 
     @workflow.signal(name=SIGNAL_CANCEL_ACCOUNT)
     async def cancel_account(self) -> None:
@@ -101,44 +96,33 @@ class CustomerLoyaltyWorkflow:
             )
             return
 
-        self.customer.guests.add(guest_id)
+        if guest_id not in self.customer.guests:
+            self.customer.guests.append(guest_id)
 
-        # guest = Customer(customerId=guest_id)
-        # child_workflow_id = CUSTOMER_WORKFLOW_ID_FORMAT.format(guest_id)
-        # try:
-        #     child_handle = await workflow.start_child_workflow(
-        #         CustomerLoyaltyWorkflow.run,
-        #         guest,
-        #         id=child_workflow_id,
-        #         parent_close_policy=workflow.ParentClosePolicy.ABANDON,
-        #         id_reuse_policy=WorkflowIDReusePolicy.REJECT_DUPLICATE,
-        #     )
-        # except WorkflowAlreadyStartedError:
-        #     logging.info("Child workflow already started")
-        #     child_handle: WorkflowHandle = workflow.get_external_workflow_handle(child_workflow_id)
-        #
-        # child_info = await child_handle.describe()
-        # isclosed = child_info.close_time is not None
+        previous = StatusTier.previous(self.customer.tier)
+        guest = Customer(
+            id=guest_id,
+            tier=previous,
+        )
 
-        isclosed: bool = await workflow.execute_activity(
+        started: bool = await workflow.execute_activity(
             start_guest_workflow,
-            guest_id,
+            guest,
             start_to_close_timeout=timedelta(seconds=5),
         )
 
-        if isclosed:
-            await workflow.execute_activity(
-                send_email,
-                "Sorry, your guest has already canceled their account.",
-                start_to_close_timeout=timedelta(seconds=5),
-            )
-        else:
+        if started:
             await workflow.execute_activity(
                 send_email,
                 "Congratulations! Your guest has been invited!",
                 start_to_close_timeout=timedelta(seconds=5),
             )
-            # await child_handle.signal(SIGNAL_ENSURE_MINIMUM_STATUS, self.customer.tier.previous())
+        else:
+            await workflow.execute_activity(
+                send_email,
+                "Sorry, your guest has already canceled their account.",
+                start_to_close_timeout=timedelta(seconds=5),
+            )
 
     @workflow.signal(name=SIGNAL_ENSURE_MINIMUM_STATUS)
     async def ensure_minimum_status(self, min_status: StatusTier) -> None:
@@ -164,3 +148,7 @@ class CustomerLoyaltyWorkflow:
     @workflow.query(name=QUERY_GET_GUESTS)
     def get_guests(self) -> list[str]:
         return list(self.customer.guests)
+
+    @staticmethod
+    def workflow_id(customer_id: str) -> str:
+        return "customer-{}".format(customer_id)
