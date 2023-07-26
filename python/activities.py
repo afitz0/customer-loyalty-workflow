@@ -15,8 +15,6 @@ class LoyaltyActivities:
 
     @activity.defn
     async def start_guest_workflow(self, guest: Customer) -> bool:
-        assert self.client is not None
-
         from loyalty_workflow import (
             CustomerLoyaltyWorkflow,
             TASK_QUEUE,
@@ -24,9 +22,6 @@ class LoyaltyActivities:
         )
 
         activity.logger.info("Starting guest workflow with ID %s" % guest.id)
-
-        # TODO how do I share this from the worker or tests?
-        # client = await Client.connect("localhost:7233")
 
         try:
             await self.client.start_workflow(
