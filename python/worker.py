@@ -5,20 +5,22 @@ from temporalio.client import Client
 from temporalio.worker import Worker
 
 from loyalty_workflow import CustomerLoyaltyWorkflow, TASK_QUEUE
-from activities import send_email
+from activities import LoyaltyActivities
 
 
-async def main():
+async def main() -> None:
     logging.basicConfig(level=logging.INFO)
 
     # Start client
-    client = await Client.connect("localhost:7233")
+    client: Client = await Client.connect("localhost:7233")
+
+    activities = LoyaltyActivities(client)
 
     worker = Worker(
         client,
         task_queue=TASK_QUEUE,
         workflows=[CustomerLoyaltyWorkflow],
-        activities=[send_email],
+        activities=[activities.send_email, activities.start_guest_workflow],
     )
     logging.info("Starting worker.")
     await worker.run()

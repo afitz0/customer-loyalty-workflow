@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import List
 
 
 @dataclass
@@ -8,7 +9,7 @@ class Customer:
     id: str = ""
     name: str = ""
     points: int = 0
-    guests: list[str] = field(default_factory=list)
+    guests: List[str] = field(default_factory=list)
     account_active: bool = True
     tier: StatusTier = field(default_factory=lambda: StatusTier())
 

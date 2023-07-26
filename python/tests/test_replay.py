@@ -8,7 +8,7 @@ from loyalty_workflow import CustomerLoyaltyWorkflow
 
 
 @pytest.mark.asyncio
-async def test_simple_replay():
+async def test_simple_replay() -> None:
     with open(os.path.dirname(os.path.realpath(__file__)) + '/simple_replay.json') as f:
         history_json = json.load(f)
 

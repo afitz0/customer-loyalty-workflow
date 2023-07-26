@@ -5,12 +5,12 @@ from shared import Customer, STATUS_LEVELS
 from loyalty_workflow import CustomerLoyaltyWorkflow, TASK_QUEUE
 
 
-async def main():
+async def main() -> None:
     logging.basicConfig(level=logging.INFO)
 
     client = await Client.connect("localhost:7233")
 
-    customer = Customer(name="Customer", id="123", tier=STATUS_LEVELS[-1])
+    customer: Customer = Customer(name="Customer", id="123", tier=STATUS_LEVELS[-1])
 
     await client.start_workflow(
         CustomerLoyaltyWorkflow.run,
