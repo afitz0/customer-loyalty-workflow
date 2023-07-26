@@ -8,19 +8,36 @@ from dataclasses_json import config
 
 @dataclass
 class Customer:
-    customerId: str = field(metadata=config(field_name="customerId"))
-    name: Optional[str] = ""
-    points: Optional[int] = 0
-    guests: Optional[set[str]] = field(default_factory=set)
-    account_active: Optional[bool] = field(default_factory=lambda: True, metadata=config(field_name="accountActive"))
-    status: Optional['Status'] = field(default_factory=lambda: Status(0))
+    customerId: str = field(default_factory=lambda: "", metadata=config(field_name="customerId"))
+    name: str = ""
+    points: int = 0
+    guests: set[str] = field(default_factory=set)
+    account_active: bool = field(default_factory=lambda: True, metadata=config(field_name="accountActive"))
+    tier: StatusTier = field(default_factory=lambda: StatusTier())
 
 
 @dataclass
 class StatusTier:
-    name: str
-    minimum_points: int
-    guests_allowed: int
+    name: str = field(default_factory=lambda: STATUS_LEVELS[0].name)
+    minimum_points: int = field(default_factory=lambda: STATUS_LEVELS[0].minimum_points)
+    guests_allowed: int = field(default_factory=lambda: STATUS_LEVELS[0].guests_allowed)
+    level: int = field(default_factory=lambda: STATUS_LEVELS[0].level)
+
+    @staticmethod
+    def status_for_points(points: int):
+        for (i, level) in enumerate(STATUS_LEVELS):
+            if i > 0 and points < level.minimum_points:
+                return STATUS_LEVELS[i - 1]
+        return STATUS_LEVELS[-1]
+
+
+STATUS_LEVELS: list[StatusTier] = [
+    StatusTier(name="Member", minimum_points=0, guests_allowed=0, level=0),
+    StatusTier(name="Bronze", minimum_points=500, guests_allowed=1, level=1),
+    StatusTier(name="Silver", minimum_points=1_000, guests_allowed=2, level=2),
+    StatusTier(name="Gold", minimum_points=2_000, guests_allowed=5, level=3),
+    StatusTier(name="Platinum", minimum_points=5_000, guests_allowed=10, level=4),
+]
 
 
 @dataclass
@@ -31,24 +48,16 @@ class GetStatusResponse:
     account_active: bool
 
 
-class Status(Iterable[tuple[Any, Any]]):
-    _level: int
-
-    MEMBER = "Member"
-    BRONZE = "Bronze"
-    SILVER = "Silver"
-    GOLD = "Gold"
-    PLATINUM = "Platinum"
-
+class Status:
     LEVELS = [
-        StatusTier(name=MEMBER, minimum_points=0, guests_allowed=0),
-        StatusTier(name=BRONZE, minimum_points=500, guests_allowed=1),
-        StatusTier(name=SILVER, minimum_points=1_000, guests_allowed=2),
-        StatusTier(name=GOLD, minimum_points=2_000, guests_allowed=5),
-        StatusTier(name=PLATINUM, minimum_points=5_000, guests_allowed=10),
+        StatusTier(name="Member", minimum_points=0, guests_allowed=0, level=0),
+        StatusTier(name="Bronze", minimum_points=500, guests_allowed=1, level=1),
+        StatusTier(name="Silver", minimum_points=1_000, guests_allowed=2, level=2),
+        StatusTier(name="Gold", minimum_points=2_000, guests_allowed=5, level=3),
+        StatusTier(name="Platinum", minimum_points=5_000, guests_allowed=10, level=4),
     ]
 
-    def __init__(self, level: Optional[int] = 0):
+    def __init__(self, level: int = 0):
         """
         Init new customer status, starting at the given [optional] level..
 
@@ -97,7 +106,7 @@ class Status(Iterable[tuple[Any, Any]]):
         self._level = new_level
         return diff
 
-    def previous(self) -> 'Status':
+    def previous(self) -> Status:
         i = self._level
         return Status(i - 1)
 
@@ -105,14 +114,3 @@ class Status(Iterable[tuple[Any, Any]]):
         min_level = Status.LEVELS.index(status)
         if self._level < min_level:
             self._level = min_level
-
-    def __iter__(self):
-        yield from {
-            "level": self._level
-        }.items()
-
-    def __str__(self):
-        return json.dumps(dict(self), ensure_ascii=False)
-
-    def __repr__(self):
-        return self.__str__()

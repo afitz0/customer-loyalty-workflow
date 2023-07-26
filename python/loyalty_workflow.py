@@ -1,10 +1,10 @@
 import logging
 from datetime import timedelta
+from typing import Optional
 
 from temporalio import workflow
 from temporalio.common import WorkflowIDReusePolicy
 from temporalio.exceptions import WorkflowAlreadyStartedError
-from temporalio.workflow import ParentClosePolicy
 from temporalio.client import WorkflowHandle
 
 from activities import send_email, start_guest_workflow
@@ -28,18 +28,20 @@ SIGNAL_ENSURE_MINIMUM_STATUS = "ensureMinimumStatus"
 QUERY_GET_STATUS = "getStatus"
 QUERY_GET_GUESTS = "getGuests"
 
-# Basic workflow that logs and invokes an activity
+
 @workflow.defn
 class CustomerLoyaltyWorkflow:
-    def __init__(self):
-        self.customer = None
+    def __init__(self) -> None:
+        self.customer: Customer = Customer()
 
     @workflow.run
     async def run(self, customer: Customer) -> str:
+        logging.basicConfig(level=logging.INFO)
         self.customer = customer
         workflow.logger.info("Running workflow with parameter %s" % customer)
-        info = workflow.info()
+        info: workflow.Info = workflow.info()
 
+        # print(self.customer.tier)
         if not info.continued_run_id:
             await workflow.execute_activity(
                 send_email,
@@ -71,7 +73,10 @@ class CustomerLoyaltyWorkflow:
     async def add_points(self, points_to_add: int) -> None:
         self.customer.points += points_to_add
 
-        status_change = self.customer.status.update(self.customer.points)
+        new_tier = StatusTier.status_for_points(self.customer.points)
+        status_change = new_tier.level - self.customer.tier.level
+        self.customer.tier = new_tier
+
         if status_change > 0:
             await workflow.execute_activity(
                 send_email,
@@ -88,7 +93,7 @@ class CustomerLoyaltyWorkflow:
 
     @workflow.signal(name=SIGNAL_INVITE_GUEST)
     async def invite_guest(self, guest_id: str) -> None:
-        if len(self.customer.guests) >= self.customer.status.guests_allowed:
+        if len(self.customer.guests) >= self.customer.tier.guests_allowed:
             await workflow.execute_activity(
                 send_email,
                 "Sorry, you need to earn more points to invite more guests!",
@@ -136,16 +141,24 @@ class CustomerLoyaltyWorkflow:
             # await child_handle.signal(SIGNAL_ENSURE_MINIMUM_STATUS, self.customer.tier.previous())
 
     @workflow.signal(name=SIGNAL_ENSURE_MINIMUM_STATUS)
-    async def ensure_minimum_status(self, min_status: StatusTier):
-        self.customer.status.ensure_at_least(min_status)
+    async def ensure_minimum_status(self, min_status: StatusTier) -> None:
+        if self.customer.tier.level < min_status.level:
+            self.customer.tier = min_status
+            self.customer.points = min_status.minimum_points
+
+            await workflow.execute_activity(
+                send_email,
+                "Congratulations! You've been promoted to '{}' status!".format(self.customer.tier.name),
+                start_to_close_timeout=timedelta(seconds=5)
+            )
 
     @workflow.query(name=QUERY_GET_STATUS)
     def get_status(self) -> GetStatusResponse:
         return GetStatusResponse(
             points=self.customer.points,
             account_active=self.customer.account_active,
-            status_level=self.customer.status_level,
-            tier=self.customer.status.tier
+            status_level=self.customer.tier.level,
+            tier=self.customer.tier
         )
 
     @workflow.query(name=QUERY_GET_GUESTS)
