@@ -3,7 +3,7 @@ import uuid
 
 import pytest
 from temporalio import activity
-from temporalio.client import WorkflowExecutionStatus, Client, WorkflowHandle
+from temporalio.client import WorkflowExecutionStatus
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
@@ -41,6 +41,7 @@ async def test_execute_workflow() -> None:
                 task_queue=task_queue_name
             )
 
+            await env.sleep(1)
             await handle.signal(CustomerLoyaltyWorkflow.cancel_account)
             await env.sleep(1)
             assert WorkflowExecutionStatus.COMPLETED == (await handle.describe()).status
@@ -69,13 +70,15 @@ async def test_add_points_single_promo() -> None:
             )
 
             await handle.signal(CustomerLoyaltyWorkflow.add_points, STATUS_LEVELS[1].minimum_points)
+            await env.sleep(1)
+
             status: GetStatusResponse = await handle.query(CustomerLoyaltyWorkflow.get_status)
             assert STATUS_LEVELS[1].name == status.tier.name
 
             await handle.signal(CustomerLoyaltyWorkflow.cancel_account)
             await env.sleep(1)
-            assert WorkflowExecutionStatus.COMPLETED == (await handle.describe()).status
 
+            assert WorkflowExecutionStatus.COMPLETED == (await handle.describe()).status
             assert "workflow completed" in await handle.result()
 
 
@@ -100,13 +103,15 @@ async def test_add_points_multi_promo() -> None:
             )
 
             await handle.signal(CustomerLoyaltyWorkflow.add_points, STATUS_LEVELS[2].minimum_points)
+            await env.sleep(1)
+
             status: GetStatusResponse = await handle.query(CustomerLoyaltyWorkflow.get_status)
             assert STATUS_LEVELS[2].name == status.tier.name
 
             await handle.signal(CustomerLoyaltyWorkflow.cancel_account)
             await env.sleep(1)
-            assert WorkflowExecutionStatus.COMPLETED == (await handle.describe()).status
 
+            assert WorkflowExecutionStatus.COMPLETED == (await handle.describe()).status
             assert "workflow completed" in await handle.result()
 
 
@@ -132,15 +137,16 @@ async def test_invite_guest() -> None:
 
             # give time for workflow to start before attempting to invite
             await env.sleep(1)
-
             await handle.signal(CustomerLoyaltyWorkflow.invite_guest, "guest")
+
+            await env.sleep(1)
             guests = await handle.query(CustomerLoyaltyWorkflow.get_guests)
             assert "guest" in guests
 
             await handle.signal(CustomerLoyaltyWorkflow.cancel_account)
             await env.sleep(1)
-            assert WorkflowExecutionStatus.COMPLETED == (await handle.describe()).status
 
+            assert WorkflowExecutionStatus.COMPLETED == (await handle.describe()).status
             assert "workflow completed" in await handle.result()
 
 
@@ -180,12 +186,14 @@ async def test_invite_canceled_guest() -> None:
             await env.sleep(1)
 
             await handle.signal(CustomerLoyaltyWorkflow.invite_guest, "guest")
+
+            await env.sleep(1)
             guests = await handle.query(CustomerLoyaltyWorkflow.get_guests)
             assert "guest" in guests
 
             await handle.signal(CustomerLoyaltyWorkflow.cancel_account)
             await env.sleep(1)
-            assert WorkflowExecutionStatus.COMPLETED == (await handle.describe()).status
 
+            assert WorkflowExecutionStatus.COMPLETED == (await handle.describe()).status
             assert "workflow completed" in await handle.result()
             assert cancel_email_call_count == 1, "Expected 'guest has canceled' to be called exactly once."

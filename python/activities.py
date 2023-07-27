@@ -18,7 +18,7 @@ class LoyaltyActivities:
         from loyalty_workflow import (
             CustomerLoyaltyWorkflow,
             TASK_QUEUE,
-            SIGNAL_ENSURE_MINIMUM_STATUS
+            Signals,
         )
 
         activity.logger.info("Starting guest workflow with ID %s" % guest.id)
@@ -28,7 +28,7 @@ class LoyaltyActivities:
                 CustomerLoyaltyWorkflow.run,
                 id=CustomerLoyaltyWorkflow.workflow_id(guest.id),
                 task_queue=TASK_QUEUE,
-                start_signal=SIGNAL_ENSURE_MINIMUM_STATUS,
+                start_signal=Signals.ENSURE_MINIMUM_STATUS,
                 start_signal_args=[guest.tier],
                 id_reuse_policy=common.WorkflowIDReusePolicy.ALLOW_DUPLICATE_FAILED_ONLY,
                 args=[guest, True],
