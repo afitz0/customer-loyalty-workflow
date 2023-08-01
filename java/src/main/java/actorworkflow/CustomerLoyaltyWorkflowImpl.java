@@ -49,16 +49,14 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
 
     @Override
     public void addLoyaltyPoints(int pointsToAdd) {
-        customer = customer.withPoints(customer.loyaltyPoints() + pointsToAdd);
+        int previousLevel = customer.status().level();
+
+        customer = activities.addPoints(customer, pointsToAdd);
         logger.info("Added {} points to customer. Total loyalty points now {}.",
                 pointsToAdd, customer.loyaltyPoints());
 
-        StatusTier tierToPromoteTo = StatusTier.getMaxTier(customer.loyaltyPoints());
-
-        if (customer.status().minimumPoints() < tierToPromoteTo.minimumPoints()) {
-            logger.info("Promoting customer!");
-            customer = customer.withStatus(tierToPromoteTo);
-            activities.sendEmail(EmailStrings.EMAIL_PROMOTED.formatted(tierToPromoteTo.name()));
+        if (previousLevel < customer.status().level()) {
+            activities.sendEmail(EmailStrings.EMAIL_PROMOTED.formatted(customer.status().name()));
         }
     }
 

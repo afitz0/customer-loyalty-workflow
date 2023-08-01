@@ -50,4 +50,16 @@ public class CustomerLoyaltyActivitiesImpl implements CustomerLoyaltyActivities 
         return true;
     }
 
+    public Customer addPoints(Customer customer, int pointsToAdd) {
+        customer.withPoints(customer.loyaltyPoints() + pointsToAdd);
+
+        StatusTier tierToPromoteTo = StatusTier.getMaxTier(customer.loyaltyPoints());
+
+        if (customer.status().minimumPoints() < tierToPromoteTo.minimumPoints()) {
+            logger.info("Promoting customer!");
+            customer.withStatus(tierToPromoteTo);
+        }
+
+        return customer;
+    }
 }
