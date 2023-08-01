@@ -5,5 +5,4 @@ public final class Shared {
 
     static final String TASK_QUEUE_NAME = "CustomerLoyaltyTaskQueue";
     static final int HISTORY_THRESHOLD = 10_000;
-    static final String WORKFLOW_ID_FORMAT = "customer-%s";
 }

@@ -1,10 +1,6 @@
 package actorworkflow;
 
 import io.temporal.activity.ActivityOptions;
-import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.enums.v1.ParentClosePolicy;
-import io.temporal.client.WorkflowExecutionAlreadyStarted;
-import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.workflow.*;
 import org.slf4j.Logger;
 
@@ -75,46 +71,13 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
             customer.guests().add(guest);
 
             StatusTier guestMinStatus = StatusTier.previous(customer.status());
-            guest = guest.withStatus(guestMinStatus);
+            guest.withStatus(guestMinStatus);
 
-            String guestWorkflowId = Shared.WORKFLOW_ID_FORMAT.formatted(guest.customerId());
-            ChildWorkflowOptions options =
-                    ChildWorkflowOptions.newBuilder()
-                            .setWorkflowId(guestWorkflowId)
-                            .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON)
-                            .build();
-
-            CustomerLoyaltyWorkflow child = Workflow.newChildWorkflowStub(CustomerLoyaltyWorkflow.class, options);
-
-            boolean alreadyStarted = false;
-            try {
-                Promise<WorkflowExecution> childExecution = Workflow.getWorkflowExecution(child);
-                Async.procedure(child::customerLoyalty, guest);
-
-                // Wait for child to start
-                childExecution.get();
-            } catch (WorkflowExecutionAlreadyStarted e) {
-                logger.info("Guest customer workflow already started and is a direct child.");
-                alreadyStarted = true;
-            } catch (ChildWorkflowFailure e) {
-                if (e.getCause() instanceof WorkflowExecutionAlreadyStarted) {
-                    logger.info("Guest customer workflow already started.");
-                } else {
-                    throw e;
-                }
-                alreadyStarted = true;
-            }
-
-            if (alreadyStarted) {
-                // Reset child to ensure we're actually working with the latest running execution
-                child = Workflow.newExternalWorkflowStub(CustomerLoyaltyWorkflow.class, guestWorkflowId);
-
-                logger.info("Signaling to ensure that they're at least \"{}\" status.", guestMinStatus.name());
-                child.ensureMinimumStatus(guestMinStatus);
-
-                activities.sendEmail(EmailStrings.EMAIL_GUEST_MIN_STATUS.formatted(guestMinStatus.name()));
-            } else {
+            boolean started = activities.startGuestWorkflow(guest, Workflow.getInfo().getTaskQueue());
+            if (started) {
                 activities.sendEmail(EmailStrings.EMAIL_GUEST_INVITED);
+            } else {
+                activities.sendEmail(EmailStrings.EMAIL_GUEST_CANCELED);
             }
         }
     }
@@ -143,5 +106,10 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
     @Override
     public ArrayList<Customer> getGuests() {
         return customer.guests();
+    }
+
+    @Override
+    public Customer getCustomer() {
+        return customer;
     }
 }

@@ -17,7 +17,7 @@ public class Worker {
     public static void main(String[] args) {
         io.temporal.worker.Worker worker = factory.newWorker(Shared.TASK_QUEUE_NAME);
         worker.registerWorkflowImplementationTypes(CustomerLoyaltyWorkflowImpl.class);
-        worker.registerActivitiesImplementations(new CustomerLoyaltyActivitiesImpl());
+        worker.registerActivitiesImplementations(new CustomerLoyaltyActivitiesImpl(client));
 
         logger.debug("Starting worker.");
         factory.start();

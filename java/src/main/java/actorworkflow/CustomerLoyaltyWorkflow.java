@@ -30,4 +30,11 @@ public interface CustomerLoyaltyWorkflow {
 
     @QueryMethod
     ArrayList<Customer> getGuests();
+
+    @QueryMethod
+    Customer getCustomer();
+
+    static String workflowIdForCustomer(Customer customer) {
+        return "customer-%s".formatted(customer.customerId());
+    }
 }
