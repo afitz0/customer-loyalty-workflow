@@ -20,7 +20,8 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
 
     boolean accountActive = true;
 
-    Customer customer;
+    private Customer customer;
+    private StatusTier startStatus;
 
     @Override
     public String customerLoyalty(Customer customer) {
@@ -28,6 +29,9 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
         WorkflowInfo info = Workflow.getInfo();
 
         logger.info("Started workflow. Customer: {}.", this.customer);
+        if (startStatus != null && this.customer.status() != this.startStatus) {
+            this.customer.withStatus(startStatus);
+        }
 
         if (info.getContinuedExecutionRunId().isEmpty()) {
             String tier = this.customer.status().name();
@@ -83,11 +87,15 @@ public class CustomerLoyaltyWorkflowImpl implements CustomerLoyaltyWorkflow {
     @Override
     public void ensureMinimumStatus(StatusTier status) {
         logger.info("Ensuring that status is at minimum {}.", status.name());
-        while (customer.status().minimumPoints() < status.minimumPoints()) {
-            customer = customer.withStatus(StatusTier.next(customer.status()));
-        }
 
-        customer = customer.withPoints(Math.max(customer.loyaltyPoints(), status.minimumPoints()));
+        // If we're here with SignalWithStart, then this.customer won't have been set yet, so we set  startStatus so
+        // that the workflow method can adjust the incoming customer appropriately.
+        if (customer == null) {
+            this.startStatus = status;
+        } else if (customer.status().level() < status.level()) {
+            customer.withStatus(status);
+            customer.withPoints(status.minimumPoints());
+        }
     }
 
     @Override
