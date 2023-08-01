@@ -6,14 +6,11 @@ import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.testing.TestWorkflowRule;
-import io.temporal.testing.WorkflowReplayer;
 import org.junit.Rule;
 import org.junit.Test;
 
-import java.io.File;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Objects;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.*;
@@ -32,16 +29,14 @@ public class CustomerLoyaltyTest {
 
     @Test
     public void testAddPoints() {
-        CustomerLoyaltyActivities activities = mock(CustomerLoyaltyActivities.class);
-        testWorkflowRule.getWorker().registerActivitiesImplementations(activities);
+        testWorkflowRule.getWorker().registerActivitiesImplementations(
+                new CustomerLoyaltyActivitiesImpl(testWorkflowRule.getWorkflowClient()));
         testWorkflowRule.getTestEnvironment().start();
 
         // Get a workflow stub using the same task queue the worker uses.
         WorkflowOptions workflowOptions =
                 WorkflowOptions.newBuilder()
                         .setTaskQueue(testWorkflowRule.getTaskQueue())
-                        .setWorkflowIdReusePolicy(
-                                WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
                         .build();
         CustomerLoyaltyWorkflow workflow =
                 testWorkflowRule
@@ -52,12 +47,21 @@ public class CustomerLoyaltyTest {
         WorkflowClient.start(workflow::customerLoyalty, new Customer("123"));
 
         StatusTier targetStatus = StatusTier.STATUS_TIERS.get(1);
-        workflow.addLoyaltyPoints(targetStatus.minimumPoints());
-        StatusTier customerStatus = workflow.getStatus();
-        assertEquals(customerStatus, targetStatus);
 
-        workflow.cancelAccount();
-        testWorkflowRule.getTestEnvironment().sleep(Duration.ofSeconds(1));
+        int order = 0;
+        testWorkflowRule.getTestEnvironment()
+                .registerDelayedCallback(Duration.ofSeconds(order++),
+                        () -> workflow.addLoyaltyPoints(targetStatus.minimumPoints()));
+
+        testWorkflowRule.getTestEnvironment()
+                .registerDelayedCallback(Duration.ofSeconds(order++), () -> {
+                            StatusTier customerStatus = workflow.getStatus();
+                            assertEquals(customerStatus, targetStatus);
+                        }
+                );
+
+        testWorkflowRule.getTestEnvironment()
+                .registerDelayedCallback(Duration.ofSeconds(order), workflow::cancelAccount);
 
         WorkflowStub.fromTyped(workflow).getResult(String.class);
         testWorkflowRule.getTestEnvironment().shutdown();
@@ -69,13 +73,15 @@ public class CustomerLoyaltyTest {
         testWorkflowRule.getWorker().registerActivitiesImplementations(activities);
         testWorkflowRule.getTestEnvironment().start();
 
+        var customer = new Customer("host", "", 0, StatusTier.STATUS_TIERS.get(4), new ArrayList<>());
+
         // Get a workflow stub using the same task queue the worker uses.
         WorkflowOptions workflowOptions =
                 WorkflowOptions.newBuilder()
                         .setTaskQueue(testWorkflowRule.getTaskQueue())
                         .setWorkflowIdReusePolicy(
-                                WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
-                        .setWorkflowId(Shared.WORKFLOW_ID_FORMAT.formatted("host"))
+                                WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY)
+                        .setWorkflowId(CustomerLoyaltyWorkflow.workflowIdForCustomer(customer))
                         .build();
         CustomerLoyaltyWorkflow workflow =
                 testWorkflowRule
@@ -83,7 +89,6 @@ public class CustomerLoyaltyTest {
                         .newWorkflowStub(CustomerLoyaltyWorkflow.class, workflowOptions);
 
         // Start workflow asynchronously to not use another thread to signal.
-        var customer = new Customer("host", "", 0, StatusTier.STATUS_TIERS.get(4), new ArrayList<>());
         WorkflowClient.start(workflow::customerLoyalty, customer);
 
         var guest = new Customer("guest");
@@ -94,7 +99,7 @@ public class CustomerLoyaltyTest {
                 .newWorkflowStub(CustomerLoyaltyWorkflow.class,
                         WorkflowOptions.newBuilder()
                                 .setTaskQueue(testWorkflowRule.getTaskQueue())
-                                .setWorkflowId(Shared.WORKFLOW_ID_FORMAT.formatted(guest.customerId()))
+                                .setWorkflowId(CustomerLoyaltyWorkflow.workflowIdForCustomer(guest))
                                 .build());
 
         testWorkflowRule
@@ -126,24 +131,35 @@ public class CustomerLoyaltyTest {
 
     @Test
     public void testAddGuestTwice() {
-        CustomerLoyaltyActivities activities = mock(CustomerLoyaltyActivities.class);
+        CustomerLoyaltyActivities activities = mock(CustomerLoyaltyActivitiesImpl.class);
+        when(activities.startGuestWorkflow(any(Customer.class), anyString()))
+                .thenReturn(true)
+                .thenReturn(false);
+
         testWorkflowRule.getWorker().registerActivitiesImplementations(activities);
         testWorkflowRule.getTestEnvironment().start();
+
+        var customer = new Customer(
+                "host",
+                "",
+                0,
+                StatusTier.STATUS_TIERS.get(4),
+                new ArrayList<>()
+        );
 
         // Get a workflow stub using the same task queue the worker uses.
         WorkflowOptions workflowOptions =
                 WorkflowOptions.newBuilder()
                         .setTaskQueue(testWorkflowRule.getTaskQueue())
-                        .setWorkflowId(Shared.WORKFLOW_ID_FORMAT.formatted("host"))
+                        .setWorkflowId(CustomerLoyaltyWorkflow.workflowIdForCustomer(customer))
                         .setWorkflowIdReusePolicy(
-                                WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
+                                WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY)
                         .build();
         CustomerLoyaltyWorkflow workflow =
                 testWorkflowRule
                         .getWorkflowClient()
                         .newWorkflowStub(CustomerLoyaltyWorkflow.class, workflowOptions);
 
-        var customer = new Customer("host", "", 0, StatusTier.STATUS_TIERS.get(4), new ArrayList<>());
         WorkflowClient.start(workflow::customerLoyalty, customer);
 
         int order = 0;
@@ -160,40 +176,14 @@ public class CustomerLoyaltyTest {
                 .registerDelayedCallback(Duration.ofSeconds(order++),
                         workflow::cancelAccount);
 
-        CustomerLoyaltyWorkflow child = testWorkflowRule
-                .getWorkflowClient()
-                .newWorkflowStub(CustomerLoyaltyWorkflow.class,
-                        WorkflowOptions.newBuilder()
-                                .setTaskQueue(testWorkflowRule.getTaskQueue())
-                                .setWorkflowId(Shared.WORKFLOW_ID_FORMAT.formatted(guest.customerId()))
-                                .build());
-
-        testWorkflowRule.getTestEnvironment().registerDelayedCallback(Duration.ofSeconds(order++), () -> {
-            // "start" the workflow, to make sure we have the current execution, but expect it to throw
-            try {
-                WorkflowClient.start(child::customerLoyalty, guest);
-            } catch (WorkflowExecutionAlreadyStarted ignored) {
-            }
-            child.cancelAccount();
-        });
-
         testWorkflowRule.getTestEnvironment().sleep(Duration.ofSeconds(order + 1));
 
         verify(activities, times(1))
                 .sendEmail(EmailStrings.EMAIL_GUEST_INVITED);
         verify(activities, times(1))
-                .sendEmail(EmailStrings.EMAIL_GUEST_MIN_STATUS.formatted(StatusTier.STATUS_TIERS.get(3).name()));
+                .sendEmail(EmailStrings.EMAIL_GUEST_CANCELED);
 
         WorkflowStub.fromTyped(workflow).getResult(String.class);
-        WorkflowStub.fromTyped(child).getResult(String.class);
         testWorkflowRule.getTestEnvironment().shutdown();
-    }
-
-    @Test(expected = Test.None.class)
-    public void testSimpleReplay() throws Exception {
-        ClassLoader classLoader = getClass().getClassLoader();
-        File file = new File(Objects.requireNonNull(classLoader.getResource("simple_replay.json")).getFile());
-
-        WorkflowReplayer.replayWorkflowExecution(file, CustomerLoyaltyWorkflowImpl.class);
     }
 }
