@@ -9,6 +9,7 @@ from activities import LoyaltyActivities
 
 with workflow.unsafe.imports_passed_through():
     from shared import (
+        LoyaltyWorkflowInput,
         Customer,
         GetStatusResponse,
         StatusTier
@@ -37,16 +38,15 @@ class CustomerLoyaltyWorkflow:
         self._signal_queue: List[tuple[str, Any]] = []
 
     @workflow.run
-    async def run(self, customer: Customer, is_new: bool = True) -> str:
+    async def run(self, arg: LoyaltyWorkflowInput) -> str:
         logging.basicConfig(level=logging.INFO)
 
-        self.customer = customer
-        self.validate_inputs()
+        self.customer = arg.customer
 
         workflow.logger.info("Running workflow with parameter %s" % self.customer)
         info: workflow.Info = workflow.info()
 
-        if is_new:
+        if arg.is_new:
             await workflow.execute_activity(
                 LoyaltyActivities.send_email,
                 "Welcome to our loyalty program! You're starting out at '{}' status.".format(self.customer.tier.name),
@@ -189,13 +189,6 @@ class CustomerLoyaltyWorkflow:
     @workflow.query(name=Queries.GET_GUESTS)
     def get_guests(self) -> list[str]:
         return list(self.customer.guests)
-
-    def validate_inputs(self) -> None:
-        # Note: I found that without this, I got a "'dict' object has no attribute 'tier'" error thrown.
-        if isinstance(self.customer, dict):
-            self.customer = Customer(**self.customer)
-        if isinstance(self.customer.tier, dict):
-            self.customer.tier = StatusTier(**self.customer.tier)
 
     @staticmethod
     def workflow_id(customer_id: str) -> str:

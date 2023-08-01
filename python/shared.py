@@ -5,6 +5,12 @@ from typing import List
 
 
 @dataclass
+class LoyaltyWorkflowInput:
+    customer: Customer
+    is_new: bool = True
+
+
+@dataclass
 class Customer:
     id: str = ""
     name: str = ""

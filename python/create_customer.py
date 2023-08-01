@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from temporalio.client import Client
-from shared import Customer, STATUS_LEVELS
+from shared import Customer, STATUS_LEVELS, LoyaltyWorkflowInput
 from loyalty_workflow import CustomerLoyaltyWorkflow, TASK_QUEUE
 
 
@@ -14,7 +14,7 @@ async def main() -> None:
 
     await client.start_workflow(
         CustomerLoyaltyWorkflow.run,
-        customer,
+        arg=LoyaltyWorkflowInput(customer=customer),
         id=CustomerLoyaltyWorkflow.workflow_id(customer.id),
         task_queue=TASK_QUEUE,
     )

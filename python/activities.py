@@ -2,7 +2,7 @@ from temporalio import activity, common
 from temporalio.client import Client
 from temporalio.exceptions import WorkflowAlreadyStartedError
 
-from shared import Customer
+from shared import Customer, LoyaltyWorkflowInput
 
 
 class LoyaltyActivities:
@@ -31,7 +31,7 @@ class LoyaltyActivities:
                 start_signal=Signals.ENSURE_MINIMUM_STATUS,
                 start_signal_args=[guest.tier],
                 id_reuse_policy=common.WorkflowIDReusePolicy.ALLOW_DUPLICATE_FAILED_ONLY,
-                args=[guest, True],
+                arg=LoyaltyWorkflowInput(customer=guest),
             )
         except WorkflowAlreadyStartedError:
             return False
